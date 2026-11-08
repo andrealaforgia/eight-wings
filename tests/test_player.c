@@ -136,6 +136,21 @@ static void test_weapons_grow_with_components(void) {
   }
 }
 
+static void test_fire_discipline_bonus(void) {
+  Game* g = new_playing_game(1);
+  tick_n(g, (Input){.fire = true}, 900);
+  CHECK_INT(sim_fire_bonus_tenths(g), 10); /* fire held down: no bonus */
+  CHECK_INT(sim_kill_points(g, 100), 100);
+  tick_n(g, (Input){0}, 900);
+  CHECK_INT(sim_fire_bonus_tenths(g), 20); /* short bursts: double points */
+  CHECK_INT(sim_kill_points(g, 100), 200);
+  for (int i = 0; i < 540; i++) tick_n(g, (Input){.fire = (i % 120) < 60}, 1); /* half the time */
+  int t = sim_fire_bonus_tenths(g);
+  CHECK(t >= 14 && t <= 16);
+  game_free(g);
+  free(g);
+}
+
 static void test_component_hit_loses_component_not_life(void) {
   Game* g = new_playing_game(1);
   give_components(g, 4);
@@ -184,6 +199,7 @@ int main(void) {
   RUN(test_docking_animation_ends_in_slot);
   RUN(test_duplicate_pod_gives_bonus_not_second_component);
   RUN(test_weapons_grow_with_components);
+  RUN(test_fire_discipline_bonus);
   RUN(test_component_hit_loses_component_not_life);
   RUN(test_death_loses_all_components);
   RUN(test_c4_increases_speed);

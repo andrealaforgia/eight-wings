@@ -129,8 +129,9 @@ static void boss_explode_step(Game* g, Boss* b) {
     g->screen_flash = 1.0f;
     sim_pickup(g, 0, b->pos.x - 20, b->pos.y + 20);
     sim_pickup(g, 0, b->pos.x + 20, b->pos.y + 20);
-    sim_add_score(g, 3000 * (g->stage + 1));
-    sim_fx_score(g, b->pos.x, b->pos.y, 3000 * (g->stage + 1));
+    int bpts = sim_kill_points(g, 3000 * (g->stage + 1));
+    sim_add_score(g, bpts);
+    sim_fx_score(g, b->pos.x, b->pos.y, bpts);
     b->active = false;
   }
 }

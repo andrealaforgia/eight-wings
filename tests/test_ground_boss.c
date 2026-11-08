@@ -87,7 +87,7 @@ static void test_raptor_hunts_player_and_leaves_bones(void) {
   long s = g->player.score;
   ground_hit(g, d, 99);
   CHECK(d->hp <= 0 && POOL_ALIVE(g->ground, d));      /* the skeleton stays on the ground ... */
-  CHECK_INT(g->player.score - s, ground_score(GT_RAPTOR));
+  CHECK_INT(g->player.score - s, sim_kill_points(g, ground_score(GT_RAPTOR)));
   float bx = d->pos.x, by = d->pos.y, h = d->p0;
   float sy0 = sim_ground_sy(g, d->pos.y);
   tick_n(g, (Input){0}, 30);

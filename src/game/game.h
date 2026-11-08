@@ -57,6 +57,7 @@ typedef struct {
   int respawn_timer;
   int shot_cd;
   int shot_alt;        /* alternates heavy shots */
+  float fire_duty;     /* 0..1: share of the last ~3 s with the fire button held (moving average) */
   int bank;            /* -1 left, 0 straight, +1 right */
   bool comp[NUM_COMPONENTS];     /* attached (docked or docking) */
   int dock_t[NUM_COMPONENTS];    /* ticks into docking; >= DOCK_TICKS means fully docked */

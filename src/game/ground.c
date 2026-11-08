@@ -32,7 +32,7 @@ void ground_hit(Game* g, Ground* e, int dmg) {
   e->flash = 3;
   float sy = sim_ground_sy(g, e->pos.y);
   if (e->hp > 0) { sim_sfx(g, SFX_HIT); return; }
-  int pts = ground_score(e->type);
+  int pts = sim_kill_points(g, ground_score(e->type));
   sim_add_score(g, pts);
   g->kills++;
   sim_fx_score(g, e->pos.x, sy - 6, pts);

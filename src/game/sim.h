@@ -40,6 +40,9 @@ static inline void sim_move(point_t* p, velocity_t* v) { animate(p, v, SIM_DT); 
 void sim_sfx(Game* g, Sfx s);
 void sim_music(Game* g, Music m);
 void sim_add_score(Game* g, long points);
+/** Points for a kill after the fire-discipline bonus: x2.0 for a player who hardly fires down to x1.0 for one who never lets go. */
+int sim_fire_bonus_tenths(const Game* g); /* 10..20 */
+int sim_kill_points(const Game* g, int base);
 Fx* sim_fx(Game* g, FxType type, float x, float y, bool world);
 void sim_fx_score(Game* g, float x, float y, int value);
 void sim_charge_gauge(Game* g, int amount);

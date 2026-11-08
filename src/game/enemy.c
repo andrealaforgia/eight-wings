@@ -48,7 +48,7 @@ Enemy* enemy_spawn(Game* g, EnemyType type, float x, float y, float p0, int dir)
 static void kill_enemy(Game* g, Enemy* e) {
   POOL_FREE(g->enemies, e);
   g->kills++;
-  int pts = enemy_score(e->type);
+  int pts = sim_kill_points(g, enemy_score(e->type));
   sim_add_score(g, pts);
   if (e->type == ET_BOMBER) {
     sim_fx(g, FX_EXPL_L, e->pos.x, e->pos.y, false);

@@ -96,8 +96,8 @@ int main(int argc, char** argv) {
   const custom_option_t custom[] = {
       {"seed", OPTION_INT, &opt.seed, "deterministic seed (default 1985)"},
       {"stage", OPTION_INT, &opt.stage, "start at stage 1..3 (debug)"},
-      {"width", OPTION_INT, &opt.width, "window width (default 768)"},
-      {"height", OPTION_INT, &opt.height, "window height (default 672)"},
+      {"width", OPTION_INT, &opt.width, "window width (default: as tall as the screen)"},
+      {"height", OPTION_INT, &opt.height, "window height (default: as tall as the screen)"},
       {"god", OPTION_FLAG, &opt.god, "invulnerable player (debug)"},
       {"debug", OPTION_FLAG, &opt.debug, "start with the debug overlay (F3 toggles)"},
       {"no-audio", OPTION_FLAG, &opt.no_audio, "silent"},
@@ -133,14 +133,29 @@ int main(int argc, char** argv) {
   }
   engine_set_log_level(LOG_LEVEL_WARN);
   graphics_config_t config = default_graphics_config("Eight Wings");
-  /* default window: the playfield at 3x (768x672), so it fills the window with no side bars */
-  config.width = opt.width > 0 ? opt.width : SCREEN_W * 3;
-  config.height = opt.height > 0 ? opt.height : SCREEN_H * 3;
   config.display = engine.display;
   config.display_mode = engine.display_mode;
   config.window_mode = engine.window_mode;
   config.vsync = engine.vsync;
   config.view_height = SCREEN_H;
+  if (opt.width <= 0 && opt.height <= 0 && config.window_mode == WINDOWED) {
+    /* Fill the screen vertically and size the width to the playfield: open a window that fills the usable screen,
+       read its height, close it, and open the real one at that height with the playfield's aspect ratio. */
+    graphics_context_ptr probe = create_graphics_context(&config);
+    if (probe) {
+      begin_frame(probe, 0, 0, 0);
+      float pixels = graphics_view_scale(probe) * (float)SCREEN_H; /* output pixels */
+      terminate_graphics_context(probe);
+      display_mode_t mode;
+      float dpi = 1.0f;
+      if (get_display_mode(config.display, 0, &mode) && mode.height > 0) dpi = floorf(pixels / (float)mode.height + 0.5f);
+      if (dpi < 1.0f) dpi = 1.0f;
+      opt.height = (int)(pixels / dpi);
+      opt.width = opt.height * SCREEN_W / SCREEN_H;
+    }
+  }
+  config.width = opt.width;
+  config.height = opt.height;
   graphics_context_ptr gfx = create_graphics_context(&config);
   if (!gfx) {
     fprintf(stderr, "cannot open a window: %s\n", engine_last_error());

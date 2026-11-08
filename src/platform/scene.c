@@ -346,6 +346,11 @@ static void draw_hud(Renderer* r, const Game* g, long frame) {
   renderer_rect(r, 0, 0, SCREEN_W, 11, 0.02f, 0.02f, 0.06f, 0.55f);
   snprintf(buf, sizeof buf, "1UP %06ld", p->score);
   renderer_text(r, buf, 4, 2, 1.0f, 1.0f, 1.0f, 1);
+  {
+    int t = sim_fire_bonus_tenths(g);
+    snprintf(buf, sizeof buf, "X%d.%d", t / 10, t % 10);
+    renderer_text(r, buf, 4, 13, t >= 15 ? 0.3f : 1.0f, 1.0f, t >= 15 ? 0.3f : 0.3f, 0.9f);
+  }
   snprintf(buf, sizeof buf, "HI %06ld", g->hiscore);
   renderer_text(r, buf, 100, 2, 1.0f, 0.85f, 0.3f, 1);
   snprintf(buf, sizeof buf, "ST%d%s", g->stage + 1, g->loop ? "L" : "");

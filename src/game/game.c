@@ -20,6 +20,15 @@ void sim_music(Game* g, Music m) {
   publish(g->events, &event);
 }
 
+int sim_fire_bonus_tenths(const Game* g) {
+  float duty = g->player.fire_duty;
+  if (duty < 0) duty = 0;
+  if (duty > 1) duty = 1;
+  return 10 + (int)((1.0f - duty) * 10.0f + 0.5f);
+}
+
+int sim_kill_points(const Game* g, int base) { return base * sim_fire_bonus_tenths(g) / 10; }
+
 void sim_add_score(Game* g, long points) {
   Player* p = &g->player;
   p->score += points;

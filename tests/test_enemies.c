@@ -7,7 +7,7 @@ static void test_player_bullet_kills_drone_and_scores(void) {
   add_pbullet(g, PB_NORMAL, e->pos.x, e->pos.y, 0, -5, 1);
   tick_n(g, (Input){0}, 1);
   CHECK(!POOL_ALIVE(g->enemies, e));
-  CHECK_INT(g->player.score - s, enemy_score(ET_DRONE));
+  CHECK_INT(g->player.score - s, sim_kill_points(g, enemy_score(ET_DRONE)));
   CHECK_INT(g->kills, 1);
   game_free(g);
   free(g);

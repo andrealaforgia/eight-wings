@@ -94,6 +94,7 @@ void player_reset(Game* g, bool full) {
   p->state = PS_ALIVE;
   p->invuln = full ? 120 : RESPAWN_INVULN;
   p->shot_cd = 0;
+  p->fire_duty = 0.5f;
   p->form_state = FORM_NONE;
   p->form_t = 0;
   p->form_cd = 0;
@@ -366,6 +367,7 @@ void player_update(Game* g) {
   for (int i = 0; i < NUM_COMPONENTS; i++)
     if (p->comp[i] && p->dock_t[i] < DOCK_TICKS) p->dock_t[i]++;
 
+  p->fire_duty += ((in->fire ? 1.0f : 0.0f) - p->fire_duty) / 180.0f;
   if (p->shot_cd > 0) p->shot_cd--;
   if (in->fire && p->shot_cd <= 0) {
     fire_volley(g);
