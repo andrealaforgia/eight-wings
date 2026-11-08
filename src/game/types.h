@@ -6,6 +6,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "geometry.h"
+#include "physics.h"
+
 #define SCREEN_W 256
 #define SCREEN_H 224
 #define TICKS_PER_SEC 60
@@ -22,7 +25,6 @@
 #define MAX_BEAMS 4
 #define NUM_COMPONENTS 8
 #define NUM_STAGES 3
-#define MAX_SFX_QUEUE 48
 #define MAP_MAX_ROWS 1400
 
 typedef struct {
@@ -75,9 +77,9 @@ typedef enum { MUS_NONE, MUS_TITLE, MUS_STAGE1, MUS_STAGE2, MUS_STAGE3, MUS_BOSS
 typedef enum { ET_DRONE, ET_SWOOP, ET_DIVER, ET_SPINNER, ET_WING, ET_BOMBER, ET_SAUCER, ET_COUNT } EnemyType;
 
 typedef struct {
-  bool active;
   EnemyType type;
-  Vec2 pos, vel;
+  point_t pos;       /* engine point and velocity: moved with the engine's animate() */
+  velocity_t vel;
   int hp;
   int age;
   int timer;
@@ -91,7 +93,6 @@ typedef struct {
 typedef enum { GT_TURRET, GT_BUNKER, GT_TANK, GT_SILO, GT_FORT, GT_RADAR, GT_RAPTOR, GT_REX, GT_COUNT } GroundType;
 
 typedef struct {
-  bool active;
   GroundType type;
   Vec2 pos;  /* world x, world y (y grows upward with progress) */
   int hp;
@@ -104,7 +105,6 @@ typedef struct {
 } Ground;
 
 typedef struct {
-  bool active;
   int number;  /* 1..4 component pod, 0 = medal */
   Vec2 pos;
   int age;
@@ -112,25 +112,24 @@ typedef struct {
 
 typedef enum { PB_NORMAL, PB_WIDE, PB_FORM, PB_PHOENIX, PB_HEAVY } PBulletKind;
 typedef struct {
-  bool active;
   PBulletKind kind;
-  Vec2 pos, vel;
+  point_t pos;
+  velocity_t vel;
   int dmg;
   bool pierce;
 } PBullet;
 
 typedef enum { EB_ORB, EB_MISSILE } EBulletKind;
 typedef struct {
-  bool active;
   EBulletKind kind;
-  Vec2 pos, vel;
+  point_t pos;
+  velocity_t vel;
   float accel;  /* missile acceleration along y */
   int age;
 } EBullet;
 
 typedef enum { FX_EXPL_S, FX_EXPL_L, FX_EXPL_G, FX_SPARK, FX_MUZZLE, FX_DEATH, FX_DOCK, FX_SCORE, FX_COUNT } FxType;
 typedef struct {
-  bool active;
   FxType type;
   Vec2 pos;    /* screen coords, or world coords when `world` */
   bool world;  /* scrolls with the ground */

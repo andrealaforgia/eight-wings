@@ -11,6 +11,7 @@ static void test_eight_direction_movement(void) {
   double dx = s.x - g->player.pos.x, dy = s.y - g->player.pos.y;
   CHECK_NEAR(dx, dy, 0.01);
   CHECK_NEAR(sqrt(dx * dx + dy * dy), PLAYER_SPEED * 10, 0.05); /* diagonal is normalised, not faster */
+  game_free(g);
   free(g);
 }
 
@@ -22,6 +23,7 @@ static void test_screen_bounds(void) {
   tick_n(g, (Input){.right = true, .down = true}, 600);
   CHECK_NEAR(g->player.pos.x, SCREEN_W - PLAYER_MARGIN_X, 0.001);
   CHECK_NEAR(g->player.pos.y, PLAYER_BOTTOM, 0.001);
+  game_free(g);
   free(g);
 }
 
@@ -32,17 +34,19 @@ static void test_shooting_cadence_and_simultaneous_move_fire(void) {
   tick_n(g, (Input){.fire = true, .right = true}, SHOT_INTERVAL * 3 - 1);
   CHECK_INT(count_active_pbullets(g), 3); /* volleys at ticks 0, 7, 14 */
   CHECK(g->player.pos.x > PLAYER_SPAWN_X); /* movement not dropped while firing */
+  game_free(g);
   free(g);
 }
 
 static void test_bullets_travel_up_and_expire(void) {
   Game* g = new_playing_game(1);
   tick_n(g, (Input){.fire = true}, 1);
-  float y0 = g->pbullets[0].pos.y;
+  float y0 = ((PBullet*)first_active(&g->pbullets))->pos.y;
   tick_n(g, (Input){0}, 5);
-  CHECK(g->pbullets[0].pos.y < y0 - 20);
+  CHECK(((PBullet*)first_active(&g->pbullets))->pos.y < y0 - 20);
   tick_n(g, (Input){0}, 120);
   CHECK_INT(count_active_pbullets(g), 0);
+  game_free(g);
   free(g);
 }
 
@@ -65,6 +69,7 @@ static void test_core_hit_kills_player_and_respawns_invulnerable(void) {
   sim_ebullet(g, EB_ORB, g->player.pos.x, g->player.pos.y, 0, 0);
   tick_n(g, (Input){0}, 1);
   CHECK_INT(g->player.state, PS_DEAD);
+  game_free(g);
   free(g);
 }
 
@@ -80,6 +85,7 @@ static void test_pod_docking_progression(void) {
     CHECK(player_comp_docked(g, n - 1));
   }
   CHECK_INT(g->stats_docks, NUM_COMPONENTS);
+  game_free(g);
   free(g);
 }
 
@@ -87,7 +93,7 @@ static void test_docking_animation_ends_in_slot(void) {
   Game* g = new_playing_game(1);
   sim_pickup(g, 1, g->player.pos.x - 30, g->player.pos.y - 20);
   g->player.pos.x = g->player.pos.x; /* pickup radius check: move onto it */
-  g->pickups[0].pos = (Vec2){g->player.pos.x - 8, g->player.pos.y - 8};
+  ((Pickup*)first_active(&g->pickups))->pos = (Vec2){g->player.pos.x - 8, g->player.pos.y - 8};
   tick_n(g, (Input){0}, 1);
   Vec2 o0 = player_comp_offset(g, 0);
   tick_n(g, (Input){0}, DOCK_TICKS + 2);
@@ -96,6 +102,7 @@ static void test_docking_animation_ends_in_slot(void) {
   CHECK_NEAR(o1.x, slot.x, 0.001);
   CHECK_NEAR(o1.y, slot.y, 0.001);
   CHECK(fabsf(o0.x - slot.x) + fabsf(o0.y - slot.y) > 1.0f);
+  game_free(g);
   free(g);
 }
 
@@ -107,6 +114,7 @@ static void test_duplicate_pod_gives_bonus_not_second_component(void) {
   tick_n(g, (Input){0}, 1);
   CHECK_INT(player_component_count(g), 1);
   CHECK(g->player.score > s);
+  game_free(g);
   free(g);
 }
 
@@ -120,10 +128,11 @@ static void test_weapons_grow_with_components(void) {
     give_components(g, ns[k]);
     tick_n(g, (Input){.fire = true}, 1);
     int dmg = 0;
-    for (int i = 0; i < MAX_PBULLETS; i++) if (g->pbullets[i].active) dmg += g->pbullets[i].dmg;
+    POOL_EACH(PBullet, pb, g->pbullets) dmg += pb->dmg;
     CHECK_INT(count_active_pbullets(g), bullets[k]);
     CHECK_INT(dmg, damage[k]);
-    free(g);
+    game_free(g);
+  free(g);
   }
 }
 
@@ -139,6 +148,7 @@ static void test_component_hit_loses_component_not_life(void) {
   CHECK_INT(g->player.lives, lives);
   CHECK_INT(g->player.state, PS_ALIVE);
   CHECK(g->player.invuln > 0);
+  game_free(g);
   free(g);
 }
 
@@ -150,6 +160,7 @@ static void test_death_loses_all_components(void) {
   CHECK_INT(player_component_count(g), 0);
   tick_n(g, (Input){0}, RESPAWN_DELAY + 2);
   CHECK_INT(player_component_count(g), 0);
+  game_free(g);
   free(g);
 }
 
@@ -158,6 +169,7 @@ static void test_c4_increases_speed(void) {
   float base = player_speed(g);
   give_components(g, 4);
   CHECK(player_speed(g) > base * 1.1f);
+  game_free(g);
   free(g);
 }
 

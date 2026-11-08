@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "arcade_font.h"
+#include "pixel_font.h"
 #include "texture.h"
 
 const SpriteStyle SPRITE_DEFAULT = {1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, false, false, false};
@@ -23,6 +25,8 @@ struct Renderer {
   texture_t atlas_add;  /* the same pixels, blended by adding */
   SpriteInfo sprites[SPR_COUNT];
   rect_t white;
+  arcade_font_t font;  /* the engine's arcade font: all game text */
+  pixel_font_t small;  /* the engine's 5x7 pixel font: debug overlay only */
   float offset_x;       /* where the playfield starts inside the engine's view */
   float shake_x, shake_y;
 };
@@ -100,7 +104,21 @@ static uint32_t* read_pixels(const char* path, int* w, int* h) {
   return px;
 }
 
-Renderer* renderer_create(graphics_context_ptr gfx, const char* assets_dir, const char* cooked_dir) {
+/* The engine's arcade font sheet has an opaque black background and load_arcade_font keeps it. So the sheet is loaded
+   with the engine's colour-key loader (black becomes transparent) into the same bitmap-font structure, with the
+   parameters the engine uses for this sheet (8x7 glyphs, 8 px rows, 32 px between colours). */
+static arcade_font_t load_transparent_arcade_font(graphics_context_ptr gfx, const char* sheet_path) {
+  arcade_font_t font;
+  memset(&font, 0, sizeof font);
+  font.bitmap_font.texture = load_texture_with_colorkey(gfx, sheet_path, 0, 0, 0);
+  font.bitmap_font.char_width = 8;
+  font.bitmap_font.char_height = 7;
+  font.bitmap_font.row_spacing = 8;
+  font.bitmap_font.color_offset = 32;
+  return font;
+}
+
+Renderer* renderer_create(graphics_context_ptr gfx, const char* assets_dir, const char* cooked_dir, const char* font_sheet) {
   Renderer* r = (Renderer*)calloc(1, sizeof *r);
   if (!r) return NULL;
   r->gfx = gfx;
@@ -115,7 +133,9 @@ Renderer* renderer_create(graphics_context_ptr gfx, const char* assets_dir, cons
     r->atlas_add = texture_from_pixels(gfx, px, w, h, false, true);
   }
   free(px);
-  if (!texture_valid(&r->atlas) || !texture_valid(&r->atlas_add)) {
+  r->font = load_transparent_arcade_font(gfx, font_sheet);
+  r->small = build_pixel_font(gfx);
+  if (!texture_valid(&r->atlas) || !texture_valid(&r->atlas_add) || !texture_valid(&r->font.bitmap_font.texture)) {
     renderer_destroy(r);
     return NULL;
   }
@@ -126,6 +146,8 @@ void renderer_destroy(Renderer* r) {
   if (!r) return;
   if (texture_valid(&r->atlas)) free_texture(&r->atlas);
   if (texture_valid(&r->atlas_add)) free_texture(&r->atlas_add);
+  free_arcade_font(&r->font);
+  free_pixel_font(&r->small);
   free(r);
 }
 
@@ -181,17 +203,43 @@ void renderer_rect(Renderer* r, float x, float y, float w, float h, float cr, fl
                          COLOR(to_byte(cr), to_byte(cg), to_byte(cb)), to_byte(ca));
 }
 
+/* The arcade font has A-Z, 0-9, ! / - and space, in eight fixed colours. Anything else is mapped to the nearest. */
+static char arcade_char(char c) {
+  if (c >= 'a' && c <= 'z') return (char)(c - 'a' + 'A');
+  if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '!' || c == '/' || c == '-' || c == ' ') return c;
+  if (c == '<' || c == '>' || c == '+') return '-';
+  return ' ';
+}
+
+static font_color_t arcade_colour(float cr, float cg, float cb) {
+  static const struct { font_color_t id; float r, g, b; } kColours[] = {
+      {FONT_COLOR_WHITE, 1.0f, 1.0f, 1.0f}, {FONT_COLOR_RED, 1.0f, 0.25f, 0.25f}, {FONT_COLOR_PINK, 1.0f, 0.55f, 0.8f},
+      {FONT_COLOR_CYAN, 0.35f, 0.9f, 1.0f}, {FONT_COLOR_GOLD, 1.0f, 0.8f, 0.25f}, {FONT_COLOR_PEACH, 1.0f, 0.7f, 0.5f},
+      {FONT_COLOR_YELLOW, 1.0f, 1.0f, 0.3f}, {FONT_COLOR_GREEN, 0.35f, 1.0f, 0.45f}};
+  font_color_t best = FONT_COLOR_WHITE;
+  float best_d = 1e9f;
+  for (size_t i = 0; i < sizeof kColours / sizeof kColours[0]; i++) {
+    float dr = cr - kColours[i].r, dg = cg - kColours[i].g, db = cb - kColours[i].b;
+    float d = dr * dr + dg * dg + db * db;
+    if (d < best_d) { best_d = d; best = kColours[i].id; }
+  }
+  return best;
+}
+
 int renderer_text_width(const char* s) { return (int)strlen(s) * 8; }
 
 void renderer_text(Renderer* r, const char* s, float x, float y, float cr, float cg, float cb, float alpha) {
-  SpriteStyle st = SPRITE_DEFAULT;
-  st.r = cr; st.g = cg; st.b = cb; st.alpha = alpha;
-  for (; *s; s++, x += 8) {
-    int c = (unsigned char)*s;
-    if (c < 32 || c > 126) c = '?';
-    if (c == ' ') continue;
-    renderer_sprite(r, SPR_font, c - 32, x + 4, y + 4, &st);
-  }
+  char buf[128];
+  size_t n = 0;
+  for (; s[n] && n < sizeof buf - 1; n++) buf[n] = arcade_char(s[n]);
+  buf[n] = 0;
+  int a = (int)(fminf(fmaxf(alpha, 0.0f), 1.0f) * 255.0f + 0.5f);
+  render_arcade_text_scaled_alpha(&r->font, r->gfx, buf, (int)floorf(x + r->shake_x + r->offset_x), (int)floorf(y + r->shake_y),
+                                  arcade_colour(cr, cg, cb), 1, a);
+}
+
+void renderer_text_small(Renderer* r, const char* s, float x, float y, float cr, float cg, float cb) {
+  render_pixel_text(&r->small, r->gfx, x + r->offset_x, y, s, 1.0f, to_byte(cr), to_byte(cg), to_byte(cb));
 }
 
 int renderer_frame_count(const Renderer* r, SpriteId id) { return r->sprites[id].frames; }

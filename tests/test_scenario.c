@@ -38,6 +38,7 @@ static Result play(uint32_t seed, int ticks, bool god, int start_stage) {
   r.score = g->player.score;
   r.mode = g->mode;
   r.hash = mix(h, (uint32_t)g->player.score);
+  game_free(g);
   free(g);
   return r;
 }

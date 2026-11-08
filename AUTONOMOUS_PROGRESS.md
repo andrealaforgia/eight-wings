@@ -30,3 +30,5 @@
 The first rounds only borrowed two engine files and drew with raw SDL/OpenGL. Now `engine/` is the real sdl-2d-game-engine submodule (unmodified) and the
 whole platform layer (window, drawing, input, audio, timing, command line) uses it; no source file includes SDL. Side effect: the engine's loader exposed that
 `sfx_dino_die.wav` and `sfx_dino_spit.wav` had never been generated; they are now. Not verified by a human: sound and feel on a real display.
+Follow-up in round 4: the simulation now also uses the engine's `object_pool` (all entity storage), `point_t`/`velocity_t`/`animate()` (bullet and enemy motion) and
+`event_system` (sound/music requests); all text uses the engine's arcade font (colour-keyed so it is transparent). Only TTF text stays off, as in super-fabio-bro.

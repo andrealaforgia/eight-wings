@@ -201,19 +201,14 @@ void player_dock(Game* g, int number, Vec2 from) {
 /* ---------------- shooting ---------------- */
 
 static PBullet* new_pbullet(Game* g, PBulletKind kind, float x, float y, float vx, float vy, int dmg, bool pierce) {
-  for (int i = 0; i < MAX_PBULLETS; i++) {
-    PBullet* b = &g->pbullets[i];
-    if (!b->active) {
-      b->active = true;
-      b->kind = kind;
-      b->pos = (Vec2){x, y};
-      b->vel = (Vec2){vx, vy};
-      b->dmg = dmg;
-      b->pierce = pierce;
-      return b;
-    }
-  }
-  return NULL;
+  PBullet* b = POOL_NEW(PBullet, g->pbullets);
+  if (!b) return NULL;
+  b->kind = kind;
+  b->pos = point(x, y);
+  sim_set_velocity(&b->vel, vx, vy);
+  b->dmg = dmg;
+  b->pierce = pierce;
+  return b;
 }
 
 static void fire_volley(Game* g) {

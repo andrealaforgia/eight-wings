@@ -30,8 +30,8 @@ extern const SpriteStyle SPRITE_DEFAULT;
 
 typedef struct Renderer Renderer;
 
-/** Loads assets_dir/atlas.txt and the cooked atlas pixels (cooked_dir/atlas.rgba) into engine textures. */
-Renderer* renderer_create(graphics_context_ptr gfx, const char* assets_dir, const char* cooked_dir);
+/** Loads assets_dir/atlas.txt, the cooked atlas pixels (cooked_dir/atlas.rgba) and the engine's arcade font sheet into engine textures. */
+Renderer* renderer_create(graphics_context_ptr gfx, const char* assets_dir, const char* cooked_dir, const char* font_sheet);
 void renderer_destroy(Renderer* r);
 /** Starts a frame: the engine fits the view to the window and clears it. */
 void renderer_begin(Renderer* r);
@@ -41,8 +41,10 @@ void renderer_translate(Renderer* r, float dx, float dy); /* screen shake */
 /** Draw frame `frame` of a sprite with its centre at (x, y), in playfield units. */
 void renderer_sprite(Renderer* r, SpriteId id, int frame, float x, float y, const SpriteStyle* style);
 void renderer_rect(Renderer* r, float x, float y, float w, float h, float cr, float cg, float cb, float ca);
-/** Draw text with the 8x8 bitmap font; (x,y) is the top-left of the first glyph. */
+/** Draw text with the engine's arcade font (A-Z, 0-9, ! / -); (x,y) is the top-left of the first glyph. Colours snap to the font's eight. */
 void renderer_text(Renderer* r, const char* s, float x, float y, float cr, float cg, float cb, float alpha);
+/** Debug text in the engine's built-in 5x7 pixel font (has digits, capitals and a little punctuation). */
+void renderer_text_small(Renderer* r, const char* s, float x, float y, float cr, float cg, float cb);
 int renderer_text_width(const char* s);
 /** Shows the finished frame. */
 void renderer_present(Renderer* r);

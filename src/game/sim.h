@@ -4,6 +4,7 @@
 
 #include <math.h>
 
+#include "animate.h"
 #include "collision.h"
 #include "game/game.h"
 
@@ -12,8 +13,32 @@ static inline bool sim_overlap(float ax, float ay, float ahw, float ahh, float b
   return aabb_collision(ax - ahw, ay - ahh, ahw * 2, ahh * 2, bx - bhw, by - bhh, bhw * 2, bhh * 2);
 }
 
+/* ---- entity pools: the engine's object_pool, with the idiom used throughout ---- */
+/** Walks the active objects of `pool` (a Game member): POOL_EACH(Enemy, e, g->enemies) { ... }. Releasing `e` inside is safe. */
+#define POOL_EACH(T, var, pool)                                  \
+  for (size_t var##_cursor = 0, var##_once = 1; var##_once; var##_once = 0) \
+    for (T* var; (var = (T*)pool_next_active(&(pool), &var##_cursor)) != NULL;)
+#define POOL_NEW(T, pool) ((T*)pool_acquire(&(pool), NULL))
+#define POOL_FREE(pool, obj) pool_release_object(&(pool), (obj))
+#define POOL_ALIVE(pool, obj) pool_is_active(&(pool), pool_index_of(&(pool), (obj)))
+#define POOL_COUNT(pool) ((int)pool_get_active_count(&(pool)))
+
+/* ---- motion: positions and velocities are the engine's point_t / velocity_t, advanced by animate() ---- */
+#define SIM_DT (1.0 / TICKS_PER_SEC)
+/** Sets a velocity from per-tick components (pixels per tick). */
+static inline void sim_set_velocity(velocity_t* v, float vx, float vy) {
+  float s = sqrtf(vx * vx + vy * vy);
+  v->speed = (double)s * TICKS_PER_SEC;
+  v->direction = s > 0.0f ? vector((double)(vx / s), (double)(vy / s)) : vector(0, 0);
+}
+static inline float sim_vx(const velocity_t* v) { return (float)(v->speed * v->direction.x * SIM_DT); }
+static inline float sim_vy(const velocity_t* v) { return (float)(v->speed * v->direction.y * SIM_DT); }
+/** One tick of movement. */
+static inline void sim_move(point_t* p, velocity_t* v) { animate(p, v, SIM_DT); }
+
 /* ---- helpers (game.c) ---- */
 void sim_sfx(Game* g, Sfx s);
+void sim_music(Game* g, Music m);
 void sim_add_score(Game* g, long points);
 Fx* sim_fx(Game* g, FxType type, float x, float y, bool world);
 void sim_fx_score(Game* g, float x, float y, int value);

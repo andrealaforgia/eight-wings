@@ -35,8 +35,8 @@ static void capture(Renderer* r, const Game* g, const char* dir, int idx) {
   printf("%s %s\n", ok ? "captured" : "FAILED  ", path);
 }
 
-static int count_enemies(const Game* g) { int n = 0; for (int i = 0; i < MAX_ENEMIES; i++) n += g->enemies[i].active; return n; }
-static int count_ebullets(const Game* g) { int n = 0; for (int i = 0; i < MAX_EBULLETS; i++) n += g->ebullets[i].active; return n; }
+static int count_enemies(const Game* g) { return (int)pool_get_active_count(&g->enemies); }
+static int count_ebullets(const Game* g) { return (int)pool_get_active_count(&g->ebullets); }
 static int docked(const Game* g) { int n = 0; for (int i = 0; i < NUM_COMPONENTS; i++) n += player_comp_docked(g, i); return n; }
 
 int autoshots_run(Renderer* r, Game* g, const char* dir, uint32_t seed) {
@@ -64,7 +64,7 @@ int autoshots_run(Renderer* r, Game* g, const char* dir, uint32_t seed) {
     const Player* p = &g->player;
     if (!shots[S_INTRO].done && g->phase == PH_INTRO && g->phase_tick == 70) capture(r, g, dir, S_INTRO);
     if (!shots[S_ACTION].done && g->stage == 0 && g->scroll > 700 && count_enemies(g) >= 3 && count_ebullets(g) >= 2) capture(r, g, dir, S_ACTION);
-    if (!shots[S_POD].done) for (int i = 0; i < MAX_PICKUPS; i++) if (g->pickups[i].active && g->pickups[i].number > 0 && g->pickups[i].pos.y > 50 && g->pickups[i].pos.y < 140) { capture(r, g, dir, S_POD); break; }
+    if (!shots[S_POD].done) POOL_EACH(const Pickup, k, g->pickups) if (k->number > 0 && k->pos.y > 50 && k->pos.y < 140) { capture(r, g, dir, S_POD); break; }
     if (!shots[S_DOCK2].done && player_component_count(g) >= 3 && !player_comp_docked(g, player_component_count(g) - 1)) capture(r, g, dir, S_DOCK2);
     if (!shots[S_ASSEMBLED].done && docked(g) == NUM_COMPONENTS && g->phase != PH_BOSS && g->player.form_state == FORM_NONE) capture(r, g, dir, S_ASSEMBLED);
     if (!shots[S_FORMATION].done && p->form_state == FORM_HOLD && p->form_t == FORM_SCATTER_TICKS + 40 && !player_is_phoenix(g)) capture(r, g, dir, S_FORMATION);
@@ -83,9 +83,8 @@ int autoshots_run(Renderer* r, Game* g, const char* dir, uint32_t seed) {
     if (!shots[S_BOSS2].done && g->stage == 1 && g->boss.active && g->boss.phase >= 1 && !g->boss.dying && count_ebullets(g) > 6) capture(r, g, dir, S_BOSS2);
     if (!shots[S_STAGE3].done && g->stage == 2 && g->scroll > 600 && count_enemies(g) >= 3) capture(r, g, dir, S_STAGE3);
     if (!shots[S_BOSS3].done && g->stage == 2 && g->boss.active && g->boss.phase >= 1 && !g->boss.dying && count_ebullets(g) > 8) capture(r, g, dir, S_BOSS3);
-    for (int i = 0; i < MAX_GROUND; i++) {
-      const Ground* d = &g->ground[i];
-      if (!d->active || (d->type != GT_RAPTOR && d->type != GT_REX)) continue;
+    POOL_EACH(const Ground, d, g->ground) {
+      if ((d->type != GT_RAPTOR && d->type != GT_REX)) continue;
       float sy = sim_ground_sy(g, d->pos.y);
       if (sy < 50 || sy > 150) continue;
       if (d->hp > 0 && !shots[S_DINO].done) capture(r, g, dir, S_DINO);

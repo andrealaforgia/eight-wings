@@ -15,24 +15,19 @@ int ground_score(GroundType t) {
 
 Ground* ground_spawn(Game* g, GroundType type, float wx, float wy, float p0) {
   static const int hp[GT_COUNT] = {2, 6, 3, 3, 24, 2, 2, 10};
-  for (int i = 0; i < MAX_GROUND; i++) {
-    Ground* e = &g->ground[i];
-    if (e->active) continue;
-    *e = (Ground){0};
-    e->active = true;
-    e->type = type;
-    e->pos = (Vec2){wx, wy};
-    e->hp = hp[type] + ((type == GT_FORT || type == GT_BUNKER || type == GT_RAPTOR) ? 0 : g->difficulty / 4);
-    e->p0 = p0;
-    e->timer = 40 + (int)(wx * 3) % 50;
-    if (type == GT_TANK) e->p0 = (p0 != 0) ? p0 : 1.0f;
-    return e;
-  }
-  return NULL;
+  Ground* e = POOL_NEW(Ground, g->ground);
+  if (!e) return NULL;
+  e->type = type;
+  e->pos = (Vec2){wx, wy};
+  e->hp = hp[type] + ((type == GT_FORT || type == GT_BUNKER || type == GT_RAPTOR) ? 0 : g->difficulty / 4);
+  e->p0 = p0;
+  e->timer = 40 + (int)(wx * 3) % 50;
+  if (type == GT_TANK) e->p0 = (p0 != 0) ? p0 : 1.0f;
+  return e;
 }
 
 void ground_hit(Game* g, Ground* e, int dmg) {
-  if (!e->active || e->hp <= 0) return;
+  if (e->hp <= 0) return;
   e->hp -= dmg;
   e->flash = 3;
   float sy = sim_ground_sy(g, e->pos.y);
@@ -115,7 +110,7 @@ static void update_ground(Game* g, Ground* e) {
   e->age++;
   if (e->flash > 0) e->flash--;
   float sy = sim_ground_sy(g, e->pos.y);
-  if (sy > SCREEN_H + 32) { e->active = false; return; }
+  if (sy > SCREEN_H + 32) { POOL_FREE(g->ground, e); return; }
   if (e->hp <= 0) return; /* rubble */
   bool onscreen = sy > 10 && sy < 185;
   switch (e->type) {
@@ -170,6 +165,5 @@ static void update_ground(Game* g, Ground* e) {
 }
 
 void ground_update_all(Game* g) {
-  for (int i = 0; i < MAX_GROUND; i++)
-    if (g->ground[i].active) update_ground(g, &g->ground[i]);
+  POOL_EACH(Ground, e, g->ground) update_ground(g, e);
 }

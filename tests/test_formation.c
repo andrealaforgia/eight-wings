@@ -59,6 +59,7 @@ static void test_requirements_to_start(void) {
   CHECK(player_can_start_formation(g));
   g->player.gauge = GAUGE_MAX - 1;
   CHECK(!player_can_start_formation(g)); /* gauge must be full */
+  game_free(g);
   free(g);
 }
 
@@ -96,6 +97,7 @@ static void test_full_attack_lifecycle(void) {
   CHECK(g->player.form_cd > 0 && !player_can_start_formation(g));
   tick_n(g, (Input){0}, FORM_COOLDOWN_TICKS + 1);
   CHECK(player_can_start_formation(g));
+  game_free(g);
   free(g);
 }
 
@@ -105,12 +107,14 @@ static void test_phoenix_only_with_full_assembly(void) {
   g->player.gauge = GAUGE_MAX;
   tick_n(g, (Input){.formation = true}, 1);
   CHECK(!player_is_phoenix(g));
+  game_free(g);
   free(g);
   g = new_playing_game(3);
   give_components(g, NUM_COMPONENTS - 1);
   g->player.gauge = GAUGE_MAX;
   tick_n(g, (Input){.formation = true}, 1);
   CHECK(!player_is_phoenix(g)); /* seven of eight is not enough */
+  game_free(g);
   free(g);
   g = new_playing_game(3);
   give_components(g, NUM_COMPONENTS);
@@ -119,8 +123,9 @@ static void test_phoenix_only_with_full_assembly(void) {
   CHECK(player_is_phoenix(g));
   tick_n(g, (Input){.fire = true}, 30);
   bool phoenix_shot = false;
-  for (int i = 0; i < MAX_PBULLETS; i++) if (g->pbullets[i].active && g->pbullets[i].kind == PB_PHOENIX) phoenix_shot = true;
+  POOL_EACH(PBullet, pb, g->pbullets) if (pb->kind == PB_PHOENIX) phoenix_shot = true;
   CHECK(phoenix_shot);
+  game_free(g);
   free(g);
 }
 
@@ -133,7 +138,8 @@ static void test_formation_rams_enemies(void) {
   Enemy* e = enemy_spawn(g, ET_BOMBER, g->player.pos.x + o.x, g->player.pos.y + o.y, 0, 1);
   int hp = e->hp;
   tick_n(g, (Input){0}, 8);
-  CHECK(!e->active || e->hp < hp);
+  CHECK(!POOL_ALIVE(g->enemies, e) || e->hp < hp);
+  game_free(g);
   free(g);
 }
 
@@ -149,6 +155,7 @@ static void test_gauge_charges_from_kills_and_not_while_active(void) {
   int gauge = g->player.gauge;
   sim_charge_gauge(g, 50);
   CHECK_INT(g->player.gauge, gauge);
+  game_free(g);
   free(g);
 }
 

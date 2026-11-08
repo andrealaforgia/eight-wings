@@ -11,11 +11,11 @@ assets_cooked/ atlas.rgba, built by `make` from the generated art (git-ignored)
 ```
 
 ## Simulation (`src/game`)
-One `Game` struct holds all state in fixed-size arrays (bullets, enemies, ground, pickups, fx, spawn script, terrain map). `game_tick(g, input)` advances
-exactly 1/60 s. Rendering and audio only *read* it; sound is requested through `sfx_queue`/`music_request`. Modules, each small and cohesive:
+One `Game` struct holds all state: engine object pools (bullets, enemies, ground, pickups, fx) plus fixed arrays (spawn script, terrain map). `game_tick(g, input)` advances
+exactly 1/60 s. Rendering and audio only *read* it; sound is requested by publishing engine events. Modules, each small and cohesive:
 `game.c` (modes, stage flow, collisions, scoring), `player.c` (movement, weapons, docking, formation), `enemy.c`, `ground.c`, `boss.c`, `level.c`
 (spawn script + procedural terrain with liquid autotiling), `demo_ai.c` (attract/test pilot). `sim.h` is the internal API between them.
-Determinism: one xorshift RNG per run, seeded from `--seed`; level generation uses its own seeded streams. Tests assert identical results for identical seeds.
+Determinism: one xorshift RNG (the engine's `rng_t`) per run, seeded from `--seed`; level generation uses its own seeded streams. Tests assert identical results for identical seeds.
 Ground objects live in **world** coordinates (`screen_y = 224 - wy + scroll`) so they never drift from the terrain.
 
 ## Platform (`src/platform`): everything runs on the engine
@@ -34,10 +34,13 @@ game compiles against its public headers only. No file in this repo includes SDL
 * `sprite_table.h` is generated from `assets/spec/sprites.spec`, so code and art share one contract.
 
 ## What comes from the engine
-Window and rendering (`graphics_context`, `texture`, `drawing_primitives`), input (`keyboard`, `controls`, `events`), audio (`audio`, `mixer`), timing (`clock`,
-`stepper`), the command-line parser, logging, and in the simulation `rng_t` and `aabb_collision` (every hit test). Not used: `object_pool` (the simulation keeps
-fixed arrays so nothing allocates in the loop), `physics`/`animate` (movement here is scripted per entity), the event system (sound is requested through
-`sfx_queue`).
+Window and rendering (`graphics_context`, `texture`, `drawing_primitives`), text (`arcade_font`/`bitmap_font` for all game text, `pixel_font` for the debug
+overlay), input (`keyboard`, `controls`, `events`), audio (`audio`, `mixer`), timing (`clock`, `stepper`), the command-line parser, logging, and in the
+simulation: `rng_t`, `aabb_collision`, `object_pool` (every entity type lives in an engine pool: `POOL_EACH`/`POOL_NEW`/`POOL_FREE` in `sim.h`; the pools
+are allocated once in `game_init`, nothing allocates in `game_tick`), `point_t`/`vector`/`velocity_t` + `animate()` (bullets and enemies move with the
+engine's own motion code), and the `event_system` (the simulation publishes sound and music requests as events; `main.c` subscribes the audio).
+The arcade font sheet is loaded through the engine's colour-key loader so its black background is transparent. TTF text (SDL2_ttf) is the one engine feature
+left off, as in `super-fabio-bro`: all text here is bitmap.
 
 ## Key decisions
 * Make, not CMake: matches the reference project and the engine.

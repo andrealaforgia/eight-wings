@@ -5,6 +5,8 @@
 #ifndef GAME_GAME_H_
 #define GAME_GAME_H_
 
+#include "event_system.h"
+#include "object_pool.h"
 #include "rng.h"
 #include "game/types.h"
 
@@ -119,12 +121,12 @@ typedef struct {
   int stats_docks, stats_formations, stats_bosses;
 
   /* world */
-  PBullet pbullets[MAX_PBULLETS];
-  EBullet ebullets[MAX_EBULLETS];
-  Enemy enemies[MAX_ENEMIES];
-  Ground ground[MAX_GROUND];
-  Pickup pickups[MAX_PICKUPS];
-  Fx fx[MAX_FX];
+  object_pool_t pbullets;  /* PBullet */
+  object_pool_t ebullets;  /* EBullet */
+  object_pool_t enemies;   /* Enemy */
+  object_pool_t ground;    /* Ground */
+  object_pool_t pickups;   /* Pickup */
+  object_pool_t fx;        /* Fx */
   Boss boss;
 
   /* level data */
@@ -134,16 +136,23 @@ typedef struct {
   uint16_t map[MAP_MAX_ROWS][MAP_COLS];
   int map_rows;
 
-  /* output channels to the platform layer */
-  Sfx sfx_queue[MAX_SFX_QUEUE];
-  int sfx_count;
-  Music music_request;
+  /* output channel to the platform layer: sound and music requests are published as engine events
+     (kinds: GAME_EVENT_SFX + Sfx, GAME_EVENT_MUSIC + Music). NULL means nobody listens (tests). */
+  event_system_ptr events;
+  Music music_current;
   float screen_flash;  /* 0..1 white flash */
   int shake;
 } Game;
 
+/* Event kinds published through Game.events. */
+#define GAME_EVENT_SFX 0
+#define GAME_EVENT_MUSIC 64
+
 /* ---- lifecycle ---- */
+/** Creates the entity pools on first use (the only allocation; none happens in game_tick), then resets the game. */
 void game_init(Game* g, uint32_t seed);
+/** Releases the entity pools. */
+void game_free(Game* g);
 void game_new_run(Game* g, int start_stage);  /* begins a new game at the given stage */
 void game_tick(Game* g, const Input* in);
 

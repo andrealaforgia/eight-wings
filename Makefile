@@ -21,17 +21,17 @@ ENGINE_LIB = $(ENGINE_DIR)/libsdl2d.a
 ENGINE_MAKE = $(MAKE) --no-print-directory -C $(ENGINE_DIR) WITH_TTF=0
 ENGINE_INCLUDES := $(foreach dir,$(shell $(ENGINE_MAKE) -s print-public-includes),-I$(ENGINE_DIR)/$(dir))
 ENGINE_LFLAGS := $(shell $(ENGINE_MAKE) -s print-link-flags)
-# The pure parts of the engine (rng, geometry, stepper, controls, mixer, events, pool) plus collision:
-# compiled straight into the tests, so the rules run with no window or sound device.
-ENGINE_PURE := $(addprefix $(ENGINE_DIR)/,$(shell $(ENGINE_MAKE) -s print-headless-sources) core/math/collision.c)
 
+# The pure parts of the engine (rng, geometry, stepper, controls, mixer, events, object pool) plus collision, physics and
+# animate, compiled straight into the tests so the rules run with no window or sound device (SDL is not even linked).
+ENGINE_PURE := $(addprefix $(ENGINE_DIR)/,$(shell $(ENGINE_MAKE) -s print-headless-sources) core/math/collision.c core/math/physics.c core/math/animate.c)
 GAME_SRC := $(wildcard src/game/*.c)
 PLAT_SRC := $(wildcard src/platform/*.c)
 TEST_SRC := $(wildcard tests/test_*.c)
 BUILD := build/$(if $(SAN),san,rel)
 OPT ?= -O2
 # No platform include path and stub headers first: any attempt to include SDL is a compile error.
-CFLAGS := -std=c11 -g $(OPT) -Wall -Wextra -Wshadow -Wconversion -Wno-sign-conversion -Wno-float-conversion -pedantic \
+CFLAGS := -std=c11 -g $(OPT) -Wall -Wextra -Wshadow -Wconversion -Wno-sign-conversion -Wno-float-conversion -Wno-implicit-float-conversion -Wno-absolute-value -pedantic \
           -D_DEFAULT_SOURCE -Iscripts/boundary_stubs -Isrc $(ENGINE_INCLUDES) $(EXTRA_CFLAGS)
 ifdef SAN
   CFLAGS += -fsanitize=address,undefined -fno-omit-frame-pointer -O1
@@ -39,7 +39,7 @@ ifdef SAN
 endif
 GAME_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(GAME_SRC))
 PLAT_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(PLAT_SRC))
-PURE_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(ENGINE_PURE))
+PURE_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(ENGINE_PURE) tests/headless_stubs.c)
 TARGET := eight-wings
 ATLAS := assets_cooked/atlas.rgba
 

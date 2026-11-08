@@ -32,6 +32,7 @@ static void test_level_script_sorted_and_contains_all_kinds(void) {
     CHECK(air[ET_DRONE] > 0 && air[ET_SWOOP] > 0 && air[ET_WING] > 0);
     if (st >= 1) CHECK(air[ET_BOMBER] > 0 && air[ET_SAUCER] > 0 && air[ET_SPINNER] > 0 && air[ET_DIVER] > 0);
   }
+  game_free(g);
   free(g);
 }
 
@@ -42,6 +43,7 @@ static void test_difficulty_escalates_across_stages(void) {
   for (int st = 0; st < NUM_STAGES; st++) { level_build(g, st); count[st] = g->spawn_count; }
   CHECK(count[2] > count[0]);
   CHECK(level_length(2) > level_length(0));
+  game_free(g);
   free(g);
 }
 
@@ -58,6 +60,7 @@ static void test_terrain_ground_targets_stand_on_land(void) {
       CHECK(local < 17);
     }
   }
+  game_free(g);
   free(g);
 }
 
@@ -82,6 +85,7 @@ static void test_liquid_autotile_masks_match_neighbours(void) {
       }
     }
   CHECK(liquids > 100);  /* the archipelago stage really has water */
+  game_free(g);
   free(g);
 }
 
@@ -91,12 +95,12 @@ static void test_scrolling_and_spawning(void) {
   g->spawn_count = 1;
   g->scroll = 0;
   tick_n(g, (Input){0}, 5);
-  int active = 0;
-  for (int i = 0; i < MAX_ENEMIES; i++) active += g->enemies[i].active;
+  int active = POOL_COUNT(g->enemies);
   CHECK_INT(active, 0);
   tick_n(g, (Input){0}, 20);
-  for (int i = 0; i < MAX_ENEMIES; i++) active += g->enemies[i].active;
+  active = POOL_COUNT(g->enemies);
   CHECK_INT(active, 1);
+  game_free(g);
   free(g);
 }
 
@@ -124,6 +128,7 @@ static void test_title_to_play_and_restart(void) {
   CHECK_INT(g->mode, MODE_PLAYING);
   CHECK_INT(g->player.lives, PLAYER_START_LIVES);
   CHECK_INT(g->player.score, 0);
+  game_free(g);
   free(g);
 }
 
@@ -149,6 +154,7 @@ static void test_pause_and_menu(void) {
   /* escape resumes */
   tick_n(g, (Input){.pause = true}, 1); tick_n(g, (Input){0}, 1);
   CHECK(!g->paused);
+  game_free(g);
   free(g);
 }
 
@@ -164,6 +170,7 @@ static void test_scoring_extra_life_and_hiscore(void) {
   sim_add_score(g, 1);
   CHECK_INT(g->player.lives, lives + 2);
   CHECK_INT(g->hiscore, g->player.score);
+  game_free(g);
   free(g);
 }
 
@@ -173,6 +180,7 @@ static void test_hiscore_survives_new_run(void) {
   game_new_run(g, 0);
   CHECK_INT(g->player.score, 0);
   CHECK_INT(g->hiscore, 12345);
+  game_free(g);
   free(g);
 }
 
@@ -187,6 +195,7 @@ static void test_attract_mode_cycle(void) {
   CHECK_INT(g->mode, MODE_DEMO);
   tick_n(g, (Input){.fire = true}, 1); /* any key leaves attract mode */
   CHECK_INT(g->mode, MODE_TITLE);
+  game_free(g);
   free(g);
 }
 
@@ -203,6 +212,7 @@ static void test_stage_loop_raises_difficulty(void) {
   CHECK_INT(g->loop, 1);
   CHECK_INT(g->stage, 0);
   CHECK_INT(g->difficulty, NUM_STAGES);
+  game_free(g);
   free(g);
 }
 

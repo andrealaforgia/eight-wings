@@ -24,15 +24,35 @@ static inline void tick_n(Game* g, Input in, int n) {
 }
 
 static inline void clear_hostiles(Game* g) {
-  memset(g->enemies, 0, sizeof g->enemies);
-  memset(g->ebullets, 0, sizeof g->ebullets);
-  memset(g->ground, 0, sizeof g->ground);
+  pool_reset(&g->enemies);
+  pool_reset(&g->ebullets);
+  pool_reset(&g->ground);
 }
 
 static inline int count_active_pbullets(const Game* g) {
-  int n = 0;
-  for (int i = 0; i < MAX_PBULLETS; i++) n += g->pbullets[i].active ? 1 : 0;
-  return n;
+  return (int)pool_get_active_count(&g->pbullets);
+}
+
+/** Adds a player bullet at (x, y) moving (vx, vy) pixels per tick. */
+static inline PBullet* add_pbullet(Game* g, PBulletKind kind, float x, float y, float vx, float vy, int dmg) {
+  PBullet* b = POOL_NEW(PBullet, g->pbullets);
+  b->kind = kind;
+  b->pos = point(x, y);
+  sim_set_velocity(&b->vel, vx, vy);
+  b->dmg = dmg;
+  return b;
+}
+
+/** Replaces all player bullets with one resting at (x, y) that deals `dmg`. */
+static inline void shoot_at(Game* g, float x, float y, int dmg) {
+  pool_reset(&g->pbullets);
+  add_pbullet(g, PB_NORMAL, x, y, 0, 0, dmg);
+}
+
+/** The first (lowest-slot) active object of a pool, or NULL. */
+static inline void* first_active(const object_pool_t* pool) {
+  size_t cursor = 0;
+  return pool_next_active(pool, &cursor);
 }
 
 static inline void give_components(Game* g, int n) {

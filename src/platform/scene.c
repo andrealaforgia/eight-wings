@@ -72,9 +72,7 @@ static float quantise(float a) {
 }
 
 static void draw_ground(Renderer* r, const Game* g) {
-  for (int i = 0; i < MAX_GROUND; i++) {
-    const Ground* e = &g->ground[i];
-    if (!e->active) continue;
+  POOL_EACH(const Ground, e, g->ground) {
     float sy = sim_ground_sy(g, e->pos.y);
     if (sy < -24 || sy > SCREEN_H + 24) continue;
     float x = e->pos.x;
@@ -112,9 +110,7 @@ static void draw_ground(Renderer* r, const Game* g) {
 }
 
 static void draw_pickups(Renderer* r, const Game* g, long frame) {
-  for (int i = 0; i < MAX_PICKUPS; i++) {
-    const Pickup* p = &g->pickups[i];
-    if (!p->active) continue;
+  POOL_EACH(const Pickup, p, g->pickups) {
     int f = (int)(frame / 8) % 2;
     if (p->number == 0) {
       renderer_sprite(r, SPR_medal, f, p->pos.x, p->pos.y, &S);
@@ -141,16 +137,14 @@ static SpriteId enemy_sprite(EnemyType t, int* nframes) {
 }
 
 static void draw_enemies(Renderer* r, const Game* g) {
-  for (int i = 0; i < MAX_ENEMIES; i++) {
-    const Enemy* e = &g->enemies[i];
-    if (!e->active) continue;
+  POOL_EACH(const Enemy, e, g->enemies) {
     int n;
     SpriteId id = enemy_sprite(e->type, &n);
     int tpf = e->type == ET_DIVER ? 3 : (e->type == ET_BOMBER ? 8 : 5);
     int fr = (e->age / tpf) % n;
     float rot = 0;
     if (e->type == ET_SWOOP) rot = -e->p0;               /* sprite faces down; p0 = heading from down toward +x */
-    if (e->type == ET_DIVER && e->state == 2) rot = -atan2f(e->vel.x, e->vel.y);
+    if (e->type == ET_DIVER && e->state == 2) rot = -atan2f(sim_vx(&e->vel), sim_vy(&e->vel));
     SpriteStyle st = S;
     st.rot = rot;
     shadow(r, id, fr, e->pos.x, e->pos.y, rot);
@@ -274,34 +268,28 @@ static void draw_player(Renderer* r, const Game* g, long frame) {
 }
 
 static void draw_bullets(Renderer* r, const Game* g, long frame) {
-  for (int i = 0; i < MAX_PBULLETS; i++) {
-    const PBullet* b = &g->pbullets[i];
-    if (!b->active) continue;
+  POOL_EACH(const PBullet, b, g->pbullets) {
     switch (b->kind) {
       case PB_NORMAL: renderer_sprite(r, SPR_shot_p, 0, b->pos.x, b->pos.y, &S); break;
       case PB_HEAVY: { SpriteStyle st = S; st.scale = 1.0f; renderer_sprite(r, SPR_shot_w, 0, b->pos.x, b->pos.y, &st); break; }
       case PB_WIDE: renderer_sprite(r, SPR_shot_w, 0, b->pos.x, b->pos.y, &S); break;
       case PB_FORM: {
         SpriteStyle st = S;
-        st.rot = atan2f(b->vel.x, -b->vel.y);
+        st.rot = atan2f(sim_vx(&b->vel), -sim_vy(&b->vel));
         renderer_sprite(r, SPR_shot_f, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &st);
         break;
       }
       case PB_PHOENIX: renderer_sprite(r, SPR_shot_ph, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &S); break;
     }
   }
-  for (int i = 0; i < MAX_EBULLETS; i++) {
-    const EBullet* b = &g->ebullets[i];
-    if (!b->active) continue;
+  POOL_EACH(const EBullet, b, g->ebullets) {
     if (b->kind == EB_MISSILE) renderer_sprite(r, SPR_bullet_m, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &S);
     else renderer_sprite(r, SPR_bullet_e, (b->age / 4) % 4, b->pos.x, b->pos.y, &S);
   }
 }
 
 static void draw_fx(Renderer* r, const Game* g) {
-  for (int i = 0; i < MAX_FX; i++) {
-    const Fx* f = &g->fx[i];
-    if (!f->active) continue;
+  POOL_EACH(const Fx, f, g->fx) {
     float x = f->pos.x;
     float y = f->world ? sim_ground_sy(g, f->pos.y) : f->pos.y;
     int fr = f->t / fx_ticks_per_frame(f->type);
@@ -340,7 +328,7 @@ static void draw_hud(Renderer* r, const Game* g, long frame) {
   renderer_text(r, buf, 4, 2, 1.0f, 1.0f, 1.0f, 1);
   snprintf(buf, sizeof buf, "HI %06ld", g->hiscore);
   renderer_text(r, buf, 100, 2, 1.0f, 0.85f, 0.3f, 1);
-  snprintf(buf, sizeof buf, "ST%d%s", g->stage + 1, g->loop ? "+" : "");
+  snprintf(buf, sizeof buf, "ST%d%s", g->stage + 1, g->loop ? "L" : "");
   renderer_text(r, buf, SCREEN_W - 4 - (float)renderer_text_width(buf), 2, 0.6f, 0.9f, 1.0f, 1);
 
   /* bottom bar: lives, component slots, formation gauge */
@@ -422,8 +410,8 @@ static void draw_title(Renderer* r, const Game* g, long frame) {
   snprintf(buf, sizeof buf, "HIGH SCORE %06ld", g->hiscore);
   text_center(r, buf, 150, 1.0f, 0.85f, 0.3f, 1);
   if ((frame / 30) % 2 == 0) text_center(r, "PRESS ENTER", 168, 1.0f, 1.0f, 1.0f, 1);
-  text_center(r, "ESC: CONTROLS", 184, 0.55f, 0.65f, 0.9f, 1);
-  text_center(r, "DOCK 8 MODULES, HUNT DINOS", 200, 0.55f, 0.85f, 0.6f, 1);
+  text_center(r, "ESC FOR CONTROLS", 184, 0.55f, 0.65f, 0.9f, 1);
+  text_center(r, "DOCK 8 MODULES - HUNT DINOS", 200, 0.55f, 0.85f, 0.6f, 1);
 }
 
 static void draw_controls(Renderer* r, long frame) {
@@ -435,11 +423,11 @@ static void draw_controls(Renderer* r, long frame) {
     renderer_text(r, rows[i][0], 24, 36 + (float)i * 11, 0.6f, 0.85f, 1.0f, 1);
     renderer_text(r, rows[i][1], 112, 36 + (float)i * 11, 1.0f, 1.0f, 1.0f, 1);
   }
-  text_center(r, "SHOOT GROUND BUNKERS: THEY", 134, 0.9f, 0.9f, 0.9f, 1);
-  text_center(r, "RELEASE NUMBERED MODULES.", 144, 0.9f, 0.9f, 0.9f, 1);
-  text_center(r, "FLY INTO THEM TO DOCK.", 154, 0.9f, 0.9f, 0.9f, 1);
-  text_center(r, "FILL THE GAUGE WITH KILLS,", 168, 0.7f, 0.95f, 0.6f, 1);
-  text_center(r, "THEN PRESS X WITH 2+ MODULES!", 178, 0.7f, 0.95f, 0.6f, 1);
+  text_center(r, "SHOOT GROUND BUNKERS - THEY", 134, 0.9f, 0.9f, 0.9f, 1);
+  text_center(r, "RELEASE NUMBERED MODULES", 144, 0.9f, 0.9f, 0.9f, 1);
+  text_center(r, "FLY INTO THEM TO DOCK", 154, 0.9f, 0.9f, 0.9f, 1);
+  text_center(r, "FILL THE GAUGE WITH KILLS", 168, 0.7f, 0.95f, 0.6f, 1);
+  text_center(r, "THEN PRESS X WITH 2 OR MORE MODULES!", 178, 0.7f, 0.95f, 0.6f, 1);
   if ((frame / 30) % 2 == 0) text_center(r, "PRESS ENTER TO START", 204, 1.0f, 1.0f, 1.0f, 1);
 }
 
@@ -451,40 +439,36 @@ static void draw_debug(Renderer* r, const Game* g) {
   renderer_rect(r, x - hw, y - hh, hw * 2, hh * 2, 0, 1, 0, 0.45f);
   for (int i = 0; i < NUM_COMPONENTS; i++)
     if (player_component_rect(g, i, &x, &y, &hw, &hh)) renderer_rect(r, x - hw, y - hh, hw * 2, hh * 2, 0, 0.8f, 1, 0.35f);
-  for (int i = 0; i < MAX_ENEMIES; i++)
-    if (g->enemies[i].active) { enemy_half_size(g->enemies[i].type, &hw, &hh); renderer_rect(r, g->enemies[i].pos.x - hw, g->enemies[i].pos.y - hh, hw * 2, hh * 2, 1, 0, 0, 0.35f); }
-  for (int i = 0; i < MAX_GROUND; i++) {
-    const Ground* e = &g->ground[i];
-    if (!e->active || e->hp <= 0) continue;
+  POOL_EACH(const Enemy, en, g->enemies) {
+    enemy_half_size(en->type, &hw, &hh);
+    renderer_rect(r, en->pos.x - hw, en->pos.y - hh, hw * 2, hh * 2, 1, 0, 0, 0.35f);
+  }
+  POOL_EACH(const Ground, e, g->ground) {
+    if (e->hp <= 0) continue;
     ground_half_size(e->type, &hw, &hh);
     float sy = sim_ground_sy(g, e->pos.y);
     renderer_rect(r, e->pos.x - hw, sy - hh, hw * 2, hh * 2, 1, 0.5f, 0, 0.35f);
   }
-  for (int i = 0; i < MAX_EBULLETS; i++)
-    if (g->ebullets[i].active) renderer_rect(r, g->ebullets[i].pos.x - 2, g->ebullets[i].pos.y - 2, 4, 4, 1, 0, 1, 0.8f);
+  POOL_EACH(const EBullet, eb, g->ebullets) renderer_rect(r, eb->pos.x - 2, eb->pos.y - 2, 4, 4, 1, 0, 1, 0.8f);
   if (g->boss.active) {
     for (int i = 0; i < 2; i++) { float gx, gy; boss_gun_pos(&g->boss, i, &gx, &gy); renderer_rect(r, gx - 8, gy - 8, 16, 16, 1, 1, 0, 0.3f); }
     float cx, cy; boss_core_pos(&g->boss, &cx, &cy); renderer_rect(r, cx - 8, cy - 8, 16, 16, 0, 1, 1, 0.3f);
   }
   /* counters */
-  int ne = 0, ng = 0, neb = 0, npb = 0, nfx = 0;
-  for (int i = 0; i < MAX_ENEMIES; i++) ne += g->enemies[i].active;
-  for (int i = 0; i < MAX_GROUND; i++) ng += g->ground[i].active;
-  for (int i = 0; i < MAX_EBULLETS; i++) neb += g->ebullets[i].active;
-  for (int i = 0; i < MAX_PBULLETS; i++) npb += g->pbullets[i].active;
-  for (int i = 0; i < MAX_FX; i++) nfx += g->fx[i].active;
+  int ne = POOL_COUNT(g->enemies), ng = POOL_COUNT(g->ground), neb = POOL_COUNT(g->ebullets);
+  int npb = POOL_COUNT(g->pbullets), nfx = POOL_COUNT(g->fx);
   char buf[96];
   renderer_rect(r, 0, 12, 150, 52, 0, 0, 0, 0.6f);
   snprintf(buf, sizeof buf, "E%d G%d EB%d PB%d FX%d", ne, ng, neb, npb, nfx);
-  renderer_text(r, buf, 2, 13, 0.7f, 1, 0.7f, 1);
+  renderer_text_small(r, buf, 2, 13, 0.7f, 1, 0.7f);
   snprintf(buf, sizeof buf, "SCR%.0f/%.0f D%d SEED%u", g->scroll, g->stage_length, g->difficulty, g->seed);
-  renderer_text(r, buf, 2, 22, 0.7f, 1, 0.7f, 1);
+  renderer_text_small(r, buf, 2, 22, 0.7f, 1, 0.7f);
   snprintf(buf, sizeof buf, "COMP%d%d%d%d FORM%d/%d G%d", p->comp[0], p->comp[1], p->comp[2], p->comp[3], p->form_state, p->form_t, p->gauge);
-  renderer_text(r, buf, 2, 31, 0.7f, 1, 0.7f, 1);
+  renderer_text_small(r, buf, 2, 31, 0.7f, 1, 0.7f);
   snprintf(buf, sizeof buf, "INV%d PH%d TICK%ld", p->invuln, g->phase, g->tick);
-  renderer_text(r, buf, 2, 40, 0.7f, 1, 0.7f, 1);
+  renderer_text_small(r, buf, 2, 40, 0.7f, 1, 0.7f);
   snprintf(buf, sizeof buf, "SPAWN %d/%d", g->spawn_next, g->spawn_count);
-  renderer_text(r, buf, 2, 49, 0.7f, 1, 0.7f, 1);
+  renderer_text_small(r, buf, 2, 49, 0.7f, 1, 0.7f);
 }
 
 void scene_draw(Renderer* r, const Game* g, long frame) {

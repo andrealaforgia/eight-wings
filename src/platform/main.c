@@ -9,6 +9,7 @@
 #include "command_line.h"
 #include "controls.h"
 #include "engine.h"
+#include "event_system.h"
 #include "events.h"
 #include "fps_tracker.h"
 #include "game/game.h"
@@ -86,15 +87,9 @@ static void save_hiscore(long v) {
   if (f) { fprintf(f, "%ld\n", v); fclose(f); }
 }
 
-static void drain_audio(Audio* audio, Game* g, Music* current) {
-  for (int i = 0; i < g->sfx_count; i++) audio_play(audio, g->sfx_queue[i]);
-  g->sfx_count = 0;
-  if (g->music_request != *current) {
-    *current = g->music_request;
-    audio_music(audio, *current);
-  }
-  audio_set_volume(audio, g->settings.music_vol, g->settings.sfx_vol, g->settings.muted);
-}
+/* The audio listens to the game: each sound or music request is an engine event. */
+static void on_sfx(const game_event_t* event, void* audio) { audio_play(audio, (Sfx)(event->type - GAME_EVENT_SFX)); }
+static void on_music(const game_event_t* event, void* audio) { audio_music(audio, (Music)(event->type - GAME_EVENT_MUSIC)); }
 
 int main(int argc, char** argv) {
   Options opt = {1985, 0, 0, 0, false, false, false, NULL, "assets"};
@@ -151,7 +146,7 @@ int main(int argc, char** argv) {
     engine_stop();
     return 1;
   }
-  Renderer* r = renderer_create(gfx, opt.asset_dir, "assets_cooked");
+  Renderer* r = renderer_create(gfx, opt.asset_dir, "assets_cooked", "engine/core/graphics/fonts/arcade-font.png");
   if (!r) {
     terminate_graphics_context(gfx);
     engine_stop();
@@ -159,7 +154,14 @@ int main(int argc, char** argv) {
   }
   Audio* audio = opt.no_audio || opt.shots_dir ? NULL : audio_create(opt.asset_dir, engine.volume);
 
+  static event_system_t events;
+  events = create_event_system();
+  if (audio) {
+    for (int i = 1; i < SFX_COUNT; i++) subscribe(&events, GAME_EVENT_SFX + i, on_sfx, audio);
+    for (int i = 1; i < MUS_COUNT; i++) subscribe(&events, GAME_EVENT_MUSIC + i, on_music, audio);
+  }
   Game* g = (Game*)calloc(1, sizeof(Game));
+  g->events = &events;
   g->god_mode = opt.god;
   g->debug_overlay = opt.debug;
   g->hiscore = load_hiscore();
@@ -174,7 +176,6 @@ int main(int argc, char** argv) {
     double prev = get_clock_seconds();
     double acc = 0;
     long frame = 0;
-    Music cur_music = MUS_NONE;
     long saved_hi = g->hiscore;
     controls_t controls;
     memset(&controls, 0, sizeof controls);
@@ -198,8 +199,8 @@ int main(int argc, char** argv) {
       for (int t = 0; t < ticks; t++) {
         Input in = to_input(controls.held);
         game_tick(g, &in);
-        drain_audio(audio, g, &cur_music);
       }
+      audio_set_volume(audio, g->settings.music_vol, g->settings.sfx_vol, g->settings.muted);
       renderer_begin(r);
       scene_draw(r, g, frame++);
       if (engine.show_fps) {
@@ -213,6 +214,7 @@ int main(int argc, char** argv) {
     }
     save_hiscore(g->hiscore);
   }
+  game_free(g);
   free(g);
   audio_destroy(audio);
   renderer_destroy(r);
