@@ -119,10 +119,10 @@ static void test_duplicate_pod_gives_bonus_not_second_component(void) {
 }
 
 static void test_weapons_grow_with_components(void) {
-  /* components -> bullets per volley and total damage per volley */
+  /* each pair of modules changes the weapon's shape (needle, twin bolts, trident, lances, plasma); the second of a pair adds escorts */
   static const int ns[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
-  static const int bullets[] = {1, 2, 3, 3, 5, 6, 7, 8, 9};
-  static const int damage[] = {1, 2, 3, 4, 6, 7, 8, 9, 10};
+  static const int bullets[] = {1, 2, 4, 3, 5, 5, 7, 5, 7};
+  static const int damage[] = {1, 4, 6, 7, 9, 13, 15, 16, 18};
   for (int k = 0; k < 9; k++) {
     Game* g = new_playing_game(1);
     give_components(g, ns[k]);

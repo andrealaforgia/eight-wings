@@ -249,6 +249,9 @@ static void bullet_half(PBulletKind k, float* hw, float* hh) {
     case PB_FORM: *hw = 3; *hh = 5; break;
     case PB_PHOENIX: *hw = 8; *hh = 11; break;
     case PB_HEAVY: *hw = 3; *hh = 6; break;
+    case PB_BOLT: *hw = 3; *hh = 6; break;
+    case PB_LANCE: *hw = 3; *hh = 9; break;
+    case PB_PLASMA: *hw = 7; *hh = 10; break;
     default: *hw = 2; *hh = 5; break;
   }
 }

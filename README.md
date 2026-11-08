@@ -44,7 +44,9 @@ Build system note: like `super-fabio-bro`, the engine is built by its own makefi
 development machine and was not used.
 
 ### Options
-The window opens as large as fits your desktop (`--scale N` to override, `F` for fullscreen). `--seed N` (deterministic run) `--stage 1..3` `--god` `--debug` `--scale N` `--fullscreen` `--no-audio` `--assets DIR` `--autoshots DIR` `--help`
+The window opens at 768x672, exactly the playfield at 3x (`--width=N --height=N` to override, `F` or F11 for full screen). Options: `--seed=N` (deterministic run) `--stage=1..3` `--god` `--debug` `--no-audio` `--assets=DIR` `--autoshots=DIR` `--help`.
+
+**Weapon tiers.** Every pair of docked modules changes the weapon, not just the shot count: needle (0), twin bolts (1-2), trident with a central lance (3-4), piercing lance fan (5-6), and a piercing plasma ball flanked by lances (7-8). The second module of each pair adds escort shots.
 
 ## Controls
 | Action | Keys |

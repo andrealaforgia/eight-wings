@@ -110,7 +110,7 @@ typedef struct {
   int age;
 } Pickup;
 
-typedef enum { PB_NORMAL, PB_WIDE, PB_FORM, PB_PHOENIX, PB_HEAVY } PBulletKind;
+typedef enum { PB_NORMAL, PB_WIDE, PB_FORM, PB_PHOENIX, PB_HEAVY, PB_BOLT, PB_LANCE, PB_PLASMA } PBulletKind;
 typedef struct {
   PBulletKind kind;
   point_t pos;

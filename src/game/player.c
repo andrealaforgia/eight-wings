@@ -222,39 +222,47 @@ static void fire_volley(Game* g) {
     sim_sfx(g, SFX_SHOT_HEAVY);
     return;
   }
-  if (!detached && player_comp_docked(g, 2)) {
-    new_pbullet(g, PB_HEAVY, x, y - 20, 0, -6.2f, 2, false);
-    sim_fx(g, FX_MUZZLE, x, y - 22, false);
-  } else {
-    new_pbullet(g, PB_NORMAL, x, y - 13, 0, -5.4f, 1, false);
-    sim_fx(g, FX_MUZZLE, x, y - 15, false);
+  int n = 0;
+  if (!detached)
+    for (int i = 0; i < NUM_COMPONENTS; i++) n += player_comp_docked(g, i) ? 1 : 0;
+  int tier = (n + 1) / 2; /* 0..4: each pair of modules changes the weapon's shape and power, it does not just add shots */
+  float my = y - 13;
+  switch (tier) {
+    case 0: /* needle */
+      new_pbullet(g, PB_NORMAL, x, my, 0, -5.4f, 1, false);
+      break;
+    case 1: /* twin bolts */
+      new_pbullet(g, PB_BOLT, x - 4, my, 0, -5.6f, 2, false);
+      new_pbullet(g, PB_BOLT, x + 4, my, 0, -5.6f, 2, false);
+      break;
+    case 2: /* trident: a lance up the middle, bolts on either side */
+      new_pbullet(g, PB_LANCE, x, my - 4, 0, -6.4f, 3, false);
+      new_pbullet(g, PB_BOLT, x - 7, my + 2, -0.9f, -5.6f, 2, false);
+      new_pbullet(g, PB_BOLT, x + 7, my + 2, 0.9f, -5.6f, 2, false);
+      break;
+    case 3: /* piercing lances in a fan */
+      new_pbullet(g, PB_LANCE, x, my - 4, 0, -6.8f, 3, true);
+      new_pbullet(g, PB_LANCE, x - 6, my, -0.8f, -6.6f, 3, true);
+      new_pbullet(g, PB_LANCE, x + 6, my, 0.8f, -6.6f, 3, true);
+      new_pbullet(g, PB_BOLT, x - 12, my + 4, -1.8f, -5.6f, 2, false);
+      new_pbullet(g, PB_BOLT, x + 12, my + 4, 1.8f, -5.6f, 2, false);
+      break;
+    default: /* plasma: a piercing ball, flanked by lances and bolts */
+      new_pbullet(g, PB_PLASMA, x, my - 6, 0, -5.8f, 6, true);
+      new_pbullet(g, PB_LANCE, x - 9, my, -0.5f, -6.8f, 3, true);
+      new_pbullet(g, PB_LANCE, x + 9, my, 0.5f, -6.8f, 3, true);
+      new_pbullet(g, PB_BOLT, x - 15, my + 4, -1.8f, -5.6f, 2, false);
+      new_pbullet(g, PB_BOLT, x + 15, my + 4, 1.8f, -5.6f, 2, false);
+      break;
   }
-  if (!detached) {
-    if (player_comp_docked(g, 0)) {
-      new_pbullet(g, PB_WIDE, x - 12, y - 7, -0.55f, -5.2f, 1, false);
-      sim_fx(g, FX_MUZZLE, x - 12, y - 9, false);
-    }
-    if (player_comp_docked(g, 1)) {
-      new_pbullet(g, PB_WIDE, x + 12, y - 7, 0.55f, -5.2f, 1, false);
-      sim_fx(g, FX_MUZZLE, x + 12, y - 9, false);
-    }
-    if (player_comp_docked(g, 3)) {
-      new_pbullet(g, PB_WIDE, x - 5, y + 10, -2.0f, -4.8f, 1, false);
-      new_pbullet(g, PB_WIDE, x + 5, y + 10, 2.0f, -4.8f, 1, false);
-    }
-    if (player_comp_docked(g, 4)) {
-      new_pbullet(g, PB_WIDE, x - 22, y - 1, -1.35f, -5.0f, 1, false);
-      sim_fx(g, FX_MUZZLE, x - 22, y - 3, false);
-    }
-    if (player_comp_docked(g, 5)) {
-      new_pbullet(g, PB_WIDE, x + 22, y - 1, 1.35f, -5.0f, 1, false);
-      sim_fx(g, FX_MUZZLE, x + 22, y - 3, false);
-    }
-    if (player_comp_docked(g, 6)) new_pbullet(g, PB_NORMAL, x - 10, y - 17, 0, -6.4f, 1, false);
-    if (player_comp_docked(g, 7)) new_pbullet(g, PB_NORMAL, x + 10, y - 17, 0, -6.4f, 1, false);
+  if (n > 0 && n % 2 == 0) { /* the second module of a pair adds escort shots */
+    new_pbullet(g, PB_WIDE, x - 18, y - 4, -2.4f, -4.8f, 1, false);
+    new_pbullet(g, PB_WIDE, x + 18, y - 4, 2.4f, -4.8f, 1, false);
   }
+  sim_fx(g, FX_MUZZLE, x, y - 15, false);
+  if (tier >= 2) sim_sfx(g, SFX_SHOT_HEAVY);
+  else if (p->shot_alt % 2 == 0) sim_sfx(g, SFX_SHOT);
   p->shot_alt++;
-  if (p->shot_alt % 2 == 0) sim_sfx(g, (!detached && player_comp_docked(g, 2)) ? SFX_SHOT_HEAVY : SFX_SHOT);
 }
 
 static void fire_formation_components(Game* g) {

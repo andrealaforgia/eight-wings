@@ -279,6 +279,26 @@ static void draw_bullets(Renderer* r, const Game* g, long frame) {
         renderer_sprite(r, SPR_shot_f, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &st);
         break;
       }
+      case PB_BOLT: { SpriteStyle st = S; st.g = 0.85f; st.b = 0.5f; renderer_sprite(r, SPR_shot_w, 0, b->pos.x, b->pos.y, &st); break; }
+      case PB_LANCE: {
+        SpriteStyle st = S;
+        st.rot = atan2f(sim_vx(&b->vel), -sim_vy(&b->vel));
+        st.scale = 1.25f;
+        renderer_sprite(r, SPR_shot_f, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &st);
+        SpriteStyle gl = additive(0.5f);
+        gl.rot = st.rot; gl.scale = 1.5f;
+        renderer_sprite(r, SPR_shot_f, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &gl);
+        break;
+      }
+      case PB_PLASMA: {
+        SpriteStyle st = S;
+        st.scale = 0.7f; st.r = 0.5f; st.g = 1.0f; st.b = 0.7f;
+        renderer_sprite(r, SPR_shot_ph, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &st);
+        SpriteStyle gl = additive(0.45f + 0.15f * sinf((float)frame * 0.5f));
+        gl.scale = 0.95f; gl.r = 0.4f; gl.b = 0.6f;
+        renderer_sprite(r, SPR_shot_ph, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &gl);
+        break;
+      }
       case PB_PHOENIX: renderer_sprite(r, SPR_shot_ph, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &S); break;
     }
   }
