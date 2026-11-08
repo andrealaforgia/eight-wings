@@ -8,6 +8,12 @@ numbered ground bunkers release eight different modules that **dock** onto your 
 All graphics are generated procedurally (by OpenAI Codex, driven by Claude Code) at 4 texels per logical pixel, and all audio is synthesised by script.
 No third-party art, sound or sprite sheets are used.
 
+## Gameplay video
+
+[![Eight Wings: full playthrough](screenshots/01_title.png)](https://www.youtube.com/watch?v=GOJIQbyPfhc)
+
+[Watch a full playthrough on YouTube](https://www.youtube.com/watch?v=GOJIQbyPfhc): all three stages and bosses, flown by the demo pilot (invulnerable, so it can show everything).
+
 ## Screenshots
 
 Real captures from the running game (`make screenshots`).
@@ -45,6 +51,8 @@ development machine and was not used.
 
 ### Options
 The window opens as tall as the usable screen, with the width following the playfield's proportions so there are no side bars (`--width=N --height=N` to override, `F` or F11 for full screen). Options: `--seed=N` (deterministic run) `--stage=1..3` `--god` `--debug` `--no-audio` `--assets=DIR` `--autoshots=DIR` `--help`.
+
+**Recording a playthrough.** `python3 tools/record_video.py out.mp4` plays a full run with the demo pilot (invulnerable, so it shows every stage and boss), pipes the frames to ffmpeg and mixes the sound from the game's own WAV files using a log of the sound events. About 5 minutes, 768x672, 30 fps.
 
 **Fire discipline bonus.** Kill points are multiplied by up to x2.0 for players who fire in bursts and only x1.0 for those who hold the fire button down; it follows how much of the last three seconds the trigger was held, and the current multiplier is shown under the score as a percentage (BONUS 100 to BONUS 200).
 

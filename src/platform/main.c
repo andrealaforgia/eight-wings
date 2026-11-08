@@ -19,6 +19,7 @@
 #include "logger.h"
 #include "platform/autoshots.h"
 #include "platform/game_audio.h"
+#include "platform/record.h"
 #include "platform/renderer.h"
 #include "platform/scene.h"
 #include "stepper.h"
@@ -48,6 +49,7 @@ typedef struct {
   int seed;
   int stage;
   int width, height;
+  const char* record_dir;
   bool god, debug, no_audio;
   const char* shots_dir;
   const char* asset_dir;
@@ -92,7 +94,7 @@ static void on_sfx(const game_event_t* event, void* audio) { audio_play(audio, (
 static void on_music(const game_event_t* event, void* audio) { audio_music(audio, (Music)(event->type - GAME_EVENT_MUSIC)); }
 
 int main(int argc, char** argv) {
-  Options opt = {1985, 0, 0, 0, false, false, false, NULL, "assets"};
+  Options opt = {.seed = 1985, .asset_dir = "assets"};
   const custom_option_t custom[] = {
       {"seed", OPTION_INT, &opt.seed, "deterministic seed (default 1985)"},
       {"stage", OPTION_INT, &opt.stage, "start at stage 1..3 (debug)"},
@@ -102,6 +104,7 @@ int main(int argc, char** argv) {
       {"debug", OPTION_FLAG, &opt.debug, "start with the debug overlay (F3 toggles)"},
       {"no-audio", OPTION_FLAG, &opt.no_audio, "silent"},
       {"assets", OPTION_STRING, &opt.asset_dir, "asset directory (default ./assets)"},
+      {"record", OPTION_STRING, &opt.record_dir, "play a full run with the demo pilot and dump frames + a sound-event log to this directory (see tools/record_video.py)"},
       {"autoshots", OPTION_STRING, &opt.shots_dir, "run a scripted session and save real screenshots (BMP) to this directory"},
   };
   const size_t custom_count = sizeof(custom) / sizeof(custom[0]);
@@ -168,13 +171,17 @@ int main(int argc, char** argv) {
     engine_stop();
     return 1;
   }
-  Audio* audio = opt.no_audio || opt.shots_dir ? NULL : audio_create(opt.asset_dir, engine.volume);
+  Audio* audio = opt.no_audio || opt.shots_dir || opt.record_dir ? NULL : audio_create(opt.asset_dir, engine.volume);
 
   static event_system_t events;
   events = create_event_system();
   if (audio) {
     for (int i = 1; i < SFX_COUNT; i++) subscribe(&events, GAME_EVENT_SFX + i, on_sfx, audio);
     for (int i = 1; i < MUS_COUNT; i++) subscribe(&events, GAME_EVENT_MUSIC + i, on_music, audio);
+  }
+  if (opt.record_dir && !record_attach(&events, opt.record_dir)) {
+    fprintf(stderr, "cannot write the event log in %s\n", opt.record_dir);
+    return 1;
   }
   Game* g = (Game*)calloc(1, sizeof(Game));
   g->events = &events;
@@ -184,7 +191,9 @@ int main(int argc, char** argv) {
   game_init(g, (uint32_t)opt.seed);
 
   int rc = 0;
-  if (opt.shots_dir) {
+  if (opt.record_dir) {
+    rc = record_run(r, g, opt.record_dir);
+  } else if (opt.shots_dir) {
     rc = autoshots_run(r, g, opt.shots_dir, (uint32_t)opt.seed);
   } else {
     if (opt.stage > 0) game_new_run(g, opt.stage);
