@@ -186,7 +186,7 @@ static void begin_stage(Game* g, int stage) {
 }
 
 void game_new_run(Game* g, int start_stage) {
-  Rng keep = g->rng;
+  rng_t keep = g->rng;
   (void)keep;
   g->loop = 0;
   g->kills = 0;

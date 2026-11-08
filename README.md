@@ -2,7 +2,7 @@
 
 ![title screen](screenshots/01_title.png)
 
-A complete vertically scrolling arcade shooter in **C11 + SDL2 + OpenGL**, made as a tribute to Nichibutsu's 1985 *Terra Cresta*:
+A complete vertically scrolling arcade shooter in **C11 on the [sdl-2d-game-engine](https://github.com/andrealaforgia/sdl-2d-game-engine)** (SDL2 underneath, via the engine), made as a tribute to Nichibutsu's 1985 *Terra Cresta*:
 numbered ground bunkers release eight different modules that **dock** onto your ship and visibly reshape it, walking **dinosaurs** stomp the ground and leave their bones behind, a gauge-powered
 **formation attack** splits the ship apart (or turns it into a phoenix at full assembly), and each of three stages ends in a boss.
 All graphics are generated procedurally (by OpenAI Codex, driven by Claude Code) at 4 texels per logical pixel, and all audio is synthesised by script.
@@ -24,9 +24,10 @@ Real captures from the running game (`make screenshots`).
 
 ## Build and run
 
-Requirements: a C11 compiler, `make`, SDL2 and SDL2_image, OpenGL, Python 3 (stdlib only; for asset/audio regeneration and validation).
+Requirements: a C11 compiler, `make`, SDL2 and SDL2_image (used by the engine), Python 3 (stdlib only; cooks the sprite atlas and regenerates art/audio).
+The engine is a git submodule: clone with `git clone --recurse-submodules git@github.com:andrealaforgia/eight-wings.git` (or run `make install`).
 
-macOS: `brew install sdl2 sdl2_image` Linux (Debian/Ubuntu): `sudo apt-get install build-essential libsdl2-dev libsdl2-image-dev libgl1-mesa-dev`
+macOS: `brew install sdl2 sdl2_image`; Linux (Debian/Ubuntu): `sudo apt-get install build-essential libsdl2-dev libsdl2-image-dev`
 
 ```sh
 make            # build ./eight-wings
@@ -39,7 +40,7 @@ make screenshots# capture real gameplay screenshots into screenshots/ (opens a w
 ```
 
 Generated assets and audio are committed, so a fresh checkout builds and runs without running the generators.
-Build system note: the reference project (`super-fabio-bro`) uses plain Make + `sdl2-config`; this project follows it. CMake is not installed on the
+Build system note: like `super-fabio-bro`, the engine is built by its own makefile and consumed through its library and public headers; the game never includes SDL. CMake is not installed on the
 development machine and was not used.
 
 ### Options

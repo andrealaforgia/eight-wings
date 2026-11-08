@@ -1,4 +1,4 @@
-/** Shared constants and plain data types for the deterministic game simulation (no SDL / GL here). */
+/** Shared constants and plain data types for the deterministic game simulation (no platform library here). */
 #ifndef GAME_TYPES_H_
 #define GAME_TYPES_H_
 

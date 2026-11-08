@@ -37,9 +37,9 @@ static void add_ground(Game* g, GroundType t, float wx, float wy, float p0) {
   (void)p0;
 }
 
-static float rf(Rng* r, float lo, float hi) { return lo + (hi - lo) * rng_float(r); }
+static float rf(rng_t* r, float lo, float hi) { return lo + (hi - lo) * rng_float(r); }
 
-static void wave(Game* g, Rng* r, int stage, float d, int kind) {
+static void wave(Game* g, rng_t* r, int stage, float d, int kind) {
   float cx = rf(r, 48, 208);
   int side = rng_chance(r, 0.5f) ? 1 : -1;
   switch (kind) {
@@ -71,7 +71,7 @@ static void wave(Game* g, Rng* r, int stage, float d, int kind) {
   }
 }
 
-static void script_air(Game* g, Rng* r, int stage, float len) {
+static void script_air(Game* g, rng_t* r, int stage, float len) {
   /* weights per kind: drone swoop wing diver spinner saucer bomber */
   static const int W[NUM_STAGES][7] = {{30, 25, 25, 12, 5, 5, 0}, {15, 20, 18, 15, 10, 12, 10}, {10, 14, 15, 20, 14, 15, 12}};
   float d = 260;
@@ -91,7 +91,7 @@ static void script_air(Game* g, Rng* r, int stage, float len) {
   }
 }
 
-static void script_ground(Game* g, Rng* r, int stage, float len) {
+static void script_ground(Game* g, rng_t* r, int stage, float len) {
   /* guaranteed supply of numbered component bunkers, escorted by turrets */
   float y = 330;
   int bunker_n = 0;
@@ -156,7 +156,7 @@ static bool s_liquid[MAXR][MAP_COLS];
 static bool s_forced_land[MAXR][MAP_COLS];
 static int s_road[MAXR][MAP_COLS]; /* 0 none, 1 v, 2 h, 3 x */
 
-static void build_terrain(Game* g, int stage, Rng* r) {
+static void build_terrain(Game* g, int stage, rng_t* r) {
   int theme = level_theme(stage);
   uint32_t seed = g->seed * 31u + (uint32_t)stage * 7919u;
   int rows = (int)((level_length(stage) + 1700.0f) / TILE) + 24;
@@ -236,7 +236,7 @@ static void build_terrain(Game* g, int stage, Rng* r) {
 }
 
 void level_build(Game* g, int stage) {
-  Rng r;
+  rng_t r;
   rng_seed(&r, g->seed * 2654435761u + (uint32_t)stage * 97u + 13u);
   g->spawn_count = 0;
   g->spawn_next = 0;

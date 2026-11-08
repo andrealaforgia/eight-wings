@@ -5,7 +5,7 @@
 #ifndef GAME_GAME_H_
 #define GAME_GAME_H_
 
-#include "core/rng.h"
+#include "rng.h"
 #include "game/types.h"
 
 typedef enum { MODE_TITLE, MODE_CONTROLS, MODE_PLAYING, MODE_GAMEOVER, MODE_DEMO } Mode;
@@ -94,7 +94,7 @@ typedef struct {
   /* meta */
   Mode mode;
   uint32_t seed;
-  Rng rng;
+  rng_t rng;
   long tick;           /* total ticks since game_init */
   long mode_tick;      /* ticks in the current mode */
   bool paused;

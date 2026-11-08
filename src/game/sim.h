@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-#include "core/collision.h"
+#include "collision.h"
 #include "game/game.h"
 
 /** Centre + half-extent overlap, built on the shared engine routine aabb_collision(). */

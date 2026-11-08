@@ -1,96 +1,89 @@
-/* Eight Wings — platform entry point: window, GL, input, audio, fixed 60 Hz loop. */
-#include <SDL.h>
-#include <SDL_image.h>
-#include <stdio.h>
+/* Eight Wings: platform entry point. Window, drawing, input, audio, timing and the command line all come from
+   the sdl-2d-game-engine (the engine/ submodule); this file only wires the deterministic game to them. */
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "core/stepper.h"
+#include "clock.h"
+#include "command_line.h"
+#include "controls.h"
+#include "engine.h"
+#include "events.h"
+#include "fps_tracker.h"
 #include "game/game.h"
 #include "game/sim.h"
-#include "platform/audio.h"
+#include "graphics.h"
+#include "keyboard.h"
+#include "logger.h"
+#include "platform/autoshots.h"
+#include "platform/game_audio.h"
 #include "platform/renderer.h"
 #include "platform/scene.h"
-#include "platform/autoshots.h"
+#include "stepper.h"
+
+/* The buttons of this game: bits of the engine's controls mask. */
+enum {
+  BTN_UP = 1u << 0, BTN_DOWN = 1u << 1, BTN_LEFT = 1u << 2, BTN_RIGHT = 1u << 3,
+  BTN_FIRE = 1u << 4, BTN_FORMATION = 1u << 5, BTN_START = 1u << 6, BTN_PAUSE = 1u << 7,
+  BTN_DEBUG = 1u << 8, BTN_MUTE = 1u << 9, BTN_FULLSCREEN = 1u << 10
+};
+
+static const key_binding_t kBindings[] = {
+    {BTN_UP, {KEY_UP, KEY_W, KEY_NONE, KEY_NONE}},
+    {BTN_DOWN, {KEY_DOWN, KEY_S, KEY_NONE, KEY_NONE}},
+    {BTN_LEFT, {KEY_LEFT, KEY_A, KEY_NONE, KEY_NONE}},
+    {BTN_RIGHT, {KEY_RIGHT, KEY_D, KEY_NONE, KEY_NONE}},
+    {BTN_FIRE, {KEY_SPACE, KEY_Z, KEY_NONE, KEY_NONE}},
+    {BTN_FORMATION, {KEY_X, KEY_LSHIFT, KEY_RSHIFT, KEY_NONE}},
+    {BTN_START, {KEY_RETURN, KEY_KP_ENTER, KEY_NONE, KEY_NONE}},
+    {BTN_PAUSE, {KEY_ESCAPE, KEY_NONE, KEY_NONE, KEY_NONE}},
+    {BTN_DEBUG, {KEY_F3, KEY_NONE, KEY_NONE, KEY_NONE}},
+    {BTN_MUTE, {KEY_M, KEY_NONE, KEY_NONE, KEY_NONE}},
+    {BTN_FULLSCREEN, {KEY_F11, KEY_F, KEY_NONE, KEY_NONE}},
+};
 
 typedef struct {
-  uint32_t seed;
-  int start_stage;
-  int scale;
-  bool god, debug, no_audio, fullscreen, demo_first, help;
+  int seed;
+  int stage;
+  int width, height;
+  bool god, debug, no_audio;
   const char* shots_dir;
   const char* asset_dir;
 } Options;
 
-static void usage(void) {
-  printf("Eight Wings\n"
-         "  --seed N        deterministic seed (default 1985)\n"
-         "  --stage N       start at stage 1..3 (debug)\n"
-         "  --scale N       initial window scale; default: the largest 256:224 window that fits the desktop\n"
-         "  --fullscreen    start fullscreen\n"
-         "  --god           invulnerable player (debug)\n"
-         "  --debug         start with the debug overlay (F3 toggles)\n"
-         "  --no-audio      silent\n"
-         "  --assets DIR    asset directory (default ./assets)\n"
-         "  --autoshots DIR run an automated scripted session and save real screenshots to DIR\n"
-         "Keys: arrows/WASD move, Space/Z fire, X/LShift formation, Esc pause, Enter start, M mute, F fullscreen, F3 debug\n");
+static Input to_input(uint32_t held) {
+  Input in = {0};
+  in.up = held & BTN_UP;
+  in.down = held & BTN_DOWN;
+  in.left = held & BTN_LEFT;
+  in.right = held & BTN_RIGHT;
+  in.fire = held & BTN_FIRE;
+  in.formation = held & BTN_FORMATION;
+  in.start = held & BTN_START;
+  in.pause = held & BTN_PAUSE;
+  return in;
 }
 
-static Options parse(int argc, char** argv) {
-  Options o = {1985, 0, 0, false, false, false, false, false, false, NULL, "assets"};
-  for (int i = 1; i < argc; i++) {
-    const char* a = argv[i];
-    if (!strcmp(a, "--seed") && i + 1 < argc) o.seed = (uint32_t)strtoul(argv[++i], NULL, 10);
-    else if (!strcmp(a, "--stage") && i + 1 < argc) o.start_stage = atoi(argv[++i]) - 1;
-    else if (!strcmp(a, "--scale") && i + 1 < argc) o.scale = atoi(argv[++i]);
-    else if (!strcmp(a, "--god")) o.god = true;
-    else if (!strcmp(a, "--debug")) o.debug = true;
-    else if (!strcmp(a, "--no-audio")) o.no_audio = true;
-    else if (!strcmp(a, "--fullscreen")) o.fullscreen = true;
-    else if (!strcmp(a, "--assets") && i + 1 < argc) o.asset_dir = argv[++i];
-    else if (!strcmp(a, "--autoshots") && i + 1 < argc) o.shots_dir = argv[++i];
-    else if (!strcmp(a, "--help") || !strcmp(a, "-h")) o.help = true;
-    else { fprintf(stderr, "unknown option %s\n", a); o.help = true; }
-  }
-  if (o.scale < 0) o.scale = 0;
-  return o;
+static bool hiscore_path(char* out, size_t n) {
+  const char* home = getenv("HOME");
+  if (!home) return false;
+  snprintf(out, n, "%s/.eight-wings-hiscore", home);
+  return true;
 }
 
 static long load_hiscore(void) {
-  char* dir = SDL_GetPrefPath("eight-wings", "eight-wings");
-  if (!dir) return 0;
   char path[1100];
-  snprintf(path, sizeof path, "%shiscore.txt", dir);
-  SDL_free(dir);
-  FILE* f = fopen(path, "r");
   long v = 0;
+  FILE* f = hiscore_path(path, sizeof path) ? fopen(path, "r") : NULL;
   if (f) { if (fscanf(f, "%ld", &v) != 1) v = 0; fclose(f); }
   return v < 0 ? 0 : v;
 }
 
 static void save_hiscore(long v) {
-  char* dir = SDL_GetPrefPath("eight-wings", "eight-wings");
-  if (!dir) return;
   char path[1100];
-  snprintf(path, sizeof path, "%shiscore.txt", dir);
-  SDL_free(dir);
-  FILE* f = fopen(path, "w");
+  FILE* f = hiscore_path(path, sizeof path) ? fopen(path, "w") : NULL;
   if (f) { fprintf(f, "%ld\n", v); fclose(f); }
-}
-
-static Input read_input(void) {
-  const Uint8* k = SDL_GetKeyboardState(NULL);
-  Input in = {0};
-  in.up = k[SDL_SCANCODE_UP] || k[SDL_SCANCODE_W];
-  in.down = k[SDL_SCANCODE_DOWN] || k[SDL_SCANCODE_S];
-  in.left = k[SDL_SCANCODE_LEFT] || k[SDL_SCANCODE_A];
-  in.right = k[SDL_SCANCODE_RIGHT] || k[SDL_SCANCODE_D];
-  in.fire = k[SDL_SCANCODE_SPACE] || k[SDL_SCANCODE_Z];
-  in.formation = k[SDL_SCANCODE_X] || k[SDL_SCANCODE_LSHIFT] || k[SDL_SCANCODE_RSHIFT];
-  in.start = k[SDL_SCANCODE_RETURN] || k[SDL_SCANCODE_KP_ENTER];
-  in.pause = k[SDL_SCANCODE_ESCAPE];
-  return in;
 }
 
 static void drain_audio(Audio* audio, Game* g, Music* current) {
@@ -104,67 +97,98 @@ static void drain_audio(Audio* audio, Game* g, Music* current) {
 }
 
 int main(int argc, char** argv) {
-  Options opt = parse(argc, argv);
-  if (opt.help) { usage(); return 0; }
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) { fprintf(stderr, "SDL_Init: %s\n", SDL_GetError()); return 1; }
-  IMG_Init(IMG_INIT_PNG);
-  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-  Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-  if (opt.fullscreen) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-  /* Big by default: the largest window with the game's aspect ratio that fits ~92% of the usable desktop. */
-  int win_w, win_h;
-  SDL_Rect usable;
-  if (opt.scale == 0 && SDL_GetDisplayUsableBounds(0, &usable) == 0 && usable.w > 0) {
-    float f = fminf((float)usable.w * 0.94f / SCREEN_W, (float)usable.h * 0.90f / SCREEN_H);
-    if (f < 3.0f) f = 3.0f;
-    win_w = (int)(SCREEN_W * f);
-    win_h = (int)(SCREEN_H * f);
-  } else {
-    int sc = opt.scale ? opt.scale : 4;
-    win_w = SCREEN_W * sc;
-    win_h = SCREEN_H * sc;
+  Options opt = {1985, 0, 0, 0, false, false, false, NULL, "assets"};
+  const custom_option_t custom[] = {
+      {"seed", OPTION_INT, &opt.seed, "deterministic seed (default 1985)"},
+      {"stage", OPTION_INT, &opt.stage, "start at stage 1..3 (debug)"},
+      {"width", OPTION_INT, &opt.width, "window width (default: the screen)"},
+      {"height", OPTION_INT, &opt.height, "window height (default: the screen)"},
+      {"god", OPTION_FLAG, &opt.god, "invulnerable player (debug)"},
+      {"debug", OPTION_FLAG, &opt.debug, "start with the debug overlay (F3 toggles)"},
+      {"no-audio", OPTION_FLAG, &opt.no_audio, "silent"},
+      {"assets", OPTION_STRING, &opt.asset_dir, "asset directory (default ./assets)"},
+      {"autoshots", OPTION_STRING, &opt.shots_dir, "run a scripted session and save real screenshots (BMP) to this directory"},
+  };
+  const size_t custom_count = sizeof(custom) / sizeof(custom[0]);
+  command_line_options_t engine = default_command_line_options();
+  engine.window_mode = WINDOWED;
+  engine.vsync = true;
+  engine.volume = 96;
+  const unsigned offered = CLI_WINDOW | CLI_VOLUME | CLI_GRAPHICS_INFO | CLI_SHOW_FPS;
+  command_line_result_t parsed = parse_command_line(argc, argv, offered, &engine, custom, custom_count);
+  if (parsed.status == COMMAND_LINE_ERROR) {
+    fprintf(stderr, "%s\n", parsed.message);
+    return 2;
   }
-  SDL_Window* win = SDL_CreateWindow("Eight Wings", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, win_w, win_h, flags);
-  if (!win) { fprintf(stderr, "window: %s\n", SDL_GetError()); return 1; }
-  Renderer* r = renderer_create(win, opt.asset_dir);
-  if (!r) return 1;
-  Audio* audio = opt.no_audio || opt.shots_dir ? NULL : audio_create(opt.asset_dir);
+  if (parsed.status == COMMAND_LINE_HELP) {
+    printf("usage: eight-wings [options]\n");
+    print_help(offered, &engine, custom, custom_count);
+    printf("keys: arrows/WASD move, Space/Z fire, X/Shift formation, Enter start, Esc pause, M mute, F11 or F full screen, F3 debug\n");
+    return 0;
+  }
+  if (opt.stage > 0) opt.stage -= 1;
+  if (!engine_start()) {
+    fprintf(stderr, "cannot start the engine: %s\n", engine_last_error());
+    return 1;
+  }
+  if (engine.graphics_info) {
+    print_graphics_info();
+    engine_stop();
+    return 0;
+  }
+  engine_set_log_level(LOG_LEVEL_WARN);
+  graphics_config_t config = default_graphics_config("Eight Wings");
+  config.width = opt.width;
+  config.height = opt.height;
+  config.display = engine.display;
+  config.display_mode = engine.display_mode;
+  config.window_mode = engine.window_mode;
+  config.vsync = engine.vsync;
+  config.view_height = SCREEN_H;
+  graphics_context_ptr gfx = create_graphics_context(&config);
+  if (!gfx) {
+    fprintf(stderr, "cannot open a window: %s\n", engine_last_error());
+    engine_stop();
+    return 1;
+  }
+  Renderer* r = renderer_create(gfx, opt.asset_dir, "assets_cooked");
+  if (!r) {
+    terminate_graphics_context(gfx);
+    engine_stop();
+    return 1;
+  }
+  Audio* audio = opt.no_audio || opt.shots_dir ? NULL : audio_create(opt.asset_dir, engine.volume);
 
   Game* g = (Game*)calloc(1, sizeof(Game));
   g->god_mode = opt.god;
   g->debug_overlay = opt.debug;
   g->hiscore = load_hiscore();
-  game_init(g, opt.seed);
+  game_init(g, (uint32_t)opt.seed);
 
   int rc = 0;
   if (opt.shots_dir) {
-    rc = autoshots_run(r, win, g, opt.shots_dir, opt.seed);
+    rc = autoshots_run(r, g, opt.shots_dir, (uint32_t)opt.seed);
   } else {
-    if (opt.start_stage > 0) game_new_run(g, opt.start_stage);
+    if (opt.stage > 0) game_new_run(g, opt.stage);
     bool running = true;
-    double prev = (double)SDL_GetPerformanceCounter() / (double)SDL_GetPerformanceFrequency();
+    double prev = get_clock_seconds();
     double acc = 0;
     long frame = 0;
     Music cur_music = MUS_NONE;
     long saved_hi = g->hiscore;
+    controls_t controls;
+    memset(&controls, 0, sizeof controls);
+    fps_tracker_t fps = create_fps_tracker();
     while (running) {
-      SDL_Event e;
-      while (SDL_PollEvent(&e)) {
-        if (e.type == SDL_QUIT) running = false;
-        if (e.type == SDL_KEYDOWN && !e.key.repeat) {
-          if (e.key.keysym.scancode == SDL_SCANCODE_F3) g->debug_overlay = !g->debug_overlay;
-          if (e.key.keysym.scancode == SDL_SCANCODE_M) g->settings.muted = !g->settings.muted;
-          if (e.key.keysym.scancode == SDL_SCANCODE_F) {
-            bool fs = SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP;
-            SDL_SetWindowFullscreen(win, fs ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
-          }
-        }
-      }
-      double now = (double)SDL_GetPerformanceCounter() / (double)SDL_GetPerformanceFrequency();
+      if (drain_events() == QUIT_EVENT) running = false;
+      double now = get_clock_seconds();
+      fps_tracker_frame(&fps, now);
+      controls_update(&controls, keyboard_read(kBindings, sizeof kBindings / sizeof kBindings[0]));
+      if (controls_pressed(&controls, BTN_DEBUG)) g->debug_overlay = !g->debug_overlay;
+      if (controls_pressed(&controls, BTN_MUTE)) g->settings.muted = !g->settings.muted;
+      if (controls_pressed(&controls, BTN_FULLSCREEN)) toggle_fullscreen(gfx);
       /* the engine's stepper clamps a stalled frame (max 0.25 s) and splits it into steps <= 1/60 s;
-         their sum is the time we feed a fixed-tick accumulator, so the simulation always advances in exact 1/60 s ticks */
+         their sum feeds a fixed-tick accumulator, so the simulation always advances in exact 1/60 s ticks */
       double step;
       int n = stepper_plan(now - prev, 1.0 / TICKS_PER_SEC, 0.25, &step);
       acc += step * n;
@@ -172,16 +196,19 @@ int main(int argc, char** argv) {
       int ticks = (int)(acc * TICKS_PER_SEC);
       if (ticks > 8) { ticks = 8; acc = 0; } else acc -= (double)ticks / TICKS_PER_SEC;
       for (int t = 0; t < ticks; t++) {
-        Input in = read_input();
+        Input in = to_input(controls.held);
         game_tick(g, &in);
         drain_audio(audio, g, &cur_music);
       }
-      int w, h;
-      SDL_GetWindowSize(win, &w, &h);
-      renderer_begin(r, w, h);
+      renderer_begin(r);
       scene_draw(r, g, frame++);
+      if (engine.show_fps) {
+        char buf[32];
+        snprintf(buf, sizeof buf, "%d FPS", (int)(fps_tracker_current(&fps) + 0.5));
+        renderer_text(r, buf, 2, SCREEN_H - 10, 0.7f, 1.0f, 0.7f, 1.0f);
+      }
       renderer_end(r);
-      SDL_GL_SwapWindow(win);
+      renderer_present(r);
       if (g->hiscore != saved_hi && (g->mode == MODE_GAMEOVER || g->mode == MODE_TITLE)) { save_hiscore(g->hiscore); saved_hi = g->hiscore; }
     }
     save_hiscore(g->hiscore);
@@ -189,8 +216,7 @@ int main(int argc, char** argv) {
   free(g);
   audio_destroy(audio);
   renderer_destroy(r);
-  SDL_DestroyWindow(win);
-  IMG_Quit();
-  SDL_Quit();
+  terminate_graphics_context(gfx);
+  engine_stop();
   return rc;
 }

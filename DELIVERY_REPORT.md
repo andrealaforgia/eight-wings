@@ -20,7 +20,7 @@ Documentation: README, docs/GAMEPLAY.md, docs/ARCHITECTURE.md, docs/ASSET_GENERA
 | Scenario: unassisted pilot loses → game over | `test_scenario` | reaches `MODE_GAMEOVER` |
 | Determinism | `test_scenario`, `test_ground_boss`, `test_level_game` | same seed ⇒ identical hash/level/boss bullets; different seed differs |
 | Real-game smoke test | `./eight-wings` ran 5 s with audio, no errors | OK |
-| Real screenshots | `make screenshots` | 17 PNGs in `screenshots/` captured from the running OpenGL game; no capture failed |
+| Real screenshots | `make screenshots` | 17 PNGs in `screenshots/` captured from the running game; no capture failed |
 
 Screenshot inspection: I personally viewed title, stage-1 action, phoenix formation, boss 1 core phase, stage-2 archipelago, boss 3, and the pause menu. I found and fixed clipped text
 (title tagline, pause help, controls line) and a wrong boss sprite index; the pause/controls/title strings were re-captured after the fix but not all 17 images were re-viewed individually.

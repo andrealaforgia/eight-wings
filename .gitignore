@@ -6,3 +6,5 @@ __pycache__/
 eight-wings
 *.pyc
 .DS_Store
+assets_cooked/
+engine/*.o
