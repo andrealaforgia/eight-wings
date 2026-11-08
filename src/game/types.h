@@ -1,0 +1,159 @@
+/** Shared constants and plain data types for the deterministic game simulation (no SDL / GL here). */
+#ifndef GAME_TYPES_H_
+#define GAME_TYPES_H_
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#define SCREEN_W 256
+#define SCREEN_H 224
+#define TICKS_PER_SEC 60
+#define TILE 16
+#define MAP_COLS (SCREEN_W / TILE)
+
+#define MAX_PBULLETS 180
+#define MAX_EBULLETS 160
+#define MAX_ENEMIES 48
+#define MAX_GROUND 48
+#define MAX_PICKUPS 8
+#define MAX_FX 160
+#define MAX_SPAWNS 700
+#define MAX_BEAMS 4
+#define NUM_COMPONENTS 8
+#define NUM_STAGES 3
+#define MAX_SFX_QUEUE 48
+#define MAP_MAX_ROWS 1400
+
+typedef struct {
+  float x, y;
+} Vec2;
+
+/** Held-key state for one tick. Edge detection (press events) is done by the game. */
+typedef struct {
+  bool up, down, left, right;
+  bool fire, formation;
+  bool start;  /* Enter */
+  bool pause;  /* Escape */
+  bool menu_left, menu_right;  /* menu adjust (shares keys with left/right) */
+} Input;
+
+/* Sound effects requested by the simulation; the platform layer plays them. */
+typedef enum {
+  SFX_NONE,
+  SFX_SHOT,
+  SFX_SHOT_HEAVY,
+  SFX_HIT,
+  SFX_ENEMY_DIE,
+  SFX_EXPLODE_BIG,
+  SFX_GROUND_DIE,
+  SFX_POD_APPEAR,
+  SFX_DOCK,
+  SFX_COMPONENT_LOST,
+  SFX_FORMATION_START,
+  SFX_FORMATION_END,
+  SFX_PLAYER_DIE,
+  SFX_MENU_MOVE,
+  SFX_MENU_SELECT,
+  SFX_BOSS_WARNING,
+  SFX_BOSS_HIT,
+  SFX_BOSS_DIE,
+  SFX_ONE_UP,
+  SFX_MEDAL,
+  SFX_ENEMY_SHOT,
+  SFX_BEAM,
+  SFX_STAGE_CLEAR,
+  SFX_PAUSE,
+  SFX_DINO_DIE,
+  SFX_DINO_SPIT,
+  SFX_COUNT
+} Sfx;
+
+typedef enum { MUS_NONE, MUS_TITLE, MUS_STAGE1, MUS_STAGE2, MUS_STAGE3, MUS_BOSS, MUS_GAMEOVER, MUS_CLEAR, MUS_COUNT } Music;
+
+/* ---- enemies ---- */
+typedef enum { ET_DRONE, ET_SWOOP, ET_DIVER, ET_SPINNER, ET_WING, ET_BOMBER, ET_SAUCER, ET_COUNT } EnemyType;
+
+typedef struct {
+  bool active;
+  EnemyType type;
+  Vec2 pos, vel;
+  int hp;
+  int age;
+  int timer;
+  int state;
+  float p0, p1;  /* per-type parameters (amplitude, phase, heading ...) */
+  int dir;       /* +1 / -1 */
+  int flash;     /* hit flash ticks */
+} Enemy;
+
+/* ---- ground targets (positions in WORLD coordinates: sy = SCREEN_H - wy + scroll) ---- */
+typedef enum { GT_TURRET, GT_BUNKER, GT_TANK, GT_SILO, GT_FORT, GT_RADAR, GT_RAPTOR, GT_REX, GT_COUNT } GroundType;
+
+typedef struct {
+  bool active;
+  GroundType type;
+  Vec2 pos;  /* world x, world y (y grows upward with progress) */
+  int hp;
+  int age;
+  int timer;
+  int state;    /* bunker: 0 closed, 1 beacon; silo: hatch frame; */
+  int aim;      /* turret frame 0..7 */
+  int flash;
+  float p0;   /* tank: direction; dinosaurs: heading (0 = walking down the screen, +x to the right) */
+} Ground;
+
+typedef struct {
+  bool active;
+  int number;  /* 1..4 component pod, 0 = medal */
+  Vec2 pos;
+  int age;
+} Pickup;
+
+typedef enum { PB_NORMAL, PB_WIDE, PB_FORM, PB_PHOENIX, PB_HEAVY } PBulletKind;
+typedef struct {
+  bool active;
+  PBulletKind kind;
+  Vec2 pos, vel;
+  int dmg;
+  bool pierce;
+} PBullet;
+
+typedef enum { EB_ORB, EB_MISSILE } EBulletKind;
+typedef struct {
+  bool active;
+  EBulletKind kind;
+  Vec2 pos, vel;
+  float accel;  /* missile acceleration along y */
+  int age;
+} EBullet;
+
+typedef enum { FX_EXPL_S, FX_EXPL_L, FX_EXPL_G, FX_SPARK, FX_MUZZLE, FX_DEATH, FX_DOCK, FX_SCORE, FX_COUNT } FxType;
+typedef struct {
+  bool active;
+  FxType type;
+  Vec2 pos;    /* screen coords, or world coords when `world` */
+  bool world;  /* scrolls with the ground */
+  int t;
+  int value;   /* FX_SCORE: points */
+} Fx;
+
+typedef struct {
+  float x;
+  int warn;  /* ticks of telegraph left */
+  int on;    /* ticks of damage left */
+} Beam;
+
+/* ---- level script ---- */
+typedef enum { SP_AIR, SP_GROUND } SpawnKind;
+typedef struct {
+  float at;  /* air: scroll distance that triggers it; ground: world y of the target */
+  SpawnKind kind;
+  int type;
+  float x;
+  float p0;
+  int dir;
+  int extra;
+} Spawn;
+
+#endif

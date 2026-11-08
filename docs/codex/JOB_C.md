@@ -1,0 +1,8 @@
+# JOB C — terrain tiles (3 themes)
+Sprite group from the spec: `tiles`. File to write: `tools/assetgen/gen_tiles.py` (+ optional helper `tools/assetgen/_c_*.py`).
+Extra design notes:
+- 16x16 fully opaque tiles, 3 themes (T0 Badlands desert canyon, T1 Archipelago ocean + islands, T2 Fortress industrial alien-tech). All tile names are in the spec.
+- Seamlessness is critical because the game tiles them randomly: base0..3 must not show seams in any arrangement; detail tiles must share the base's edge pixels' average colour so they sit naturally; roads must connect: road_v ends join road_v and road_x at identical x columns (e.g. road occupies columns 4..11 in every vertical piece), road_h rows 4..11, road_x is the union.
+- Liquid autotiles (liq0..liq15): mask bit 1=north land, 2=east land, 4=south land, 8=west land. Tile is liquid with a land margin (sand/shore foam line) on sides where the bit is set; shore profile along each side must be a deterministic function of (side, position along the edge) only, so adjacent tiles line up exactly (e.g. margin depth = 3 + wave[x] where wave is a fixed 16-entry table; at corners combine with max). liq0 has subtle animated-look wave texture but no shore. T1's liquid is deep ocean blue, T0's is a small oasis/river water, T2's is glowing cyan coolant.
+- Style: restrained, low-contrast terrain, dithered shading, small believable details (cracks, footprints, tyre tracks, rivets). Lower saturation than sprites so enemies/bullets stay readable.
+- struct tiles: top-down buildings/domes/tanks/landing pads with 1px darker shadow offset to bottom-right; they are DECORATION only.
