@@ -37,3 +37,9 @@ Calling Codex again requires the Codex CLI: `codex exec -C . --sandbox workspace
 Owner feedback: sprites too coarse. All art is now authored at 2x density (`ART_SCALE 2` in `renderer.h`; spec sizes doubled, e.g. `ship_core` 32x48).
 The renderer draws each sprite at w/2 x h/2 logical px, so on-screen size and all gameplay are unchanged. Codex redrew every generator (briefs:
 `docs/codex/BRIEF_ROUND3.md`, `run_round3.sh`; results `result_*3.md`). 382 files validate, regeneration is byte-identical. Not human-reviewed beyond screenshots.
+
+## Round 5: one coherent ship
+Owner feedback: the core and its eight modules looked like unrelated add-ons. Codex redesigned them (`docs/codex/BRIEF_ROUND5.md`, `run_round5.sh`)
+by composing the fully assembled ship once as a single swept-wing aircraft and slicing it into the existing sprites by module, so panel lines,
+leading edges and engines continue across the docking seams; each module keeps only an accent stripe on the shared hull. Sprite names, sizes
+and module offsets are unchanged. Generator: `tools/assetgen/gen_ship.py` with `_ship5_aircraft.py`.

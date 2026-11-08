@@ -46,7 +46,7 @@ development machine and was not used.
 ### Options
 The window opens as tall as the usable screen, with the width following the playfield's proportions so there are no side bars (`--width=N --height=N` to override, `F` or F11 for full screen). Options: `--seed=N` (deterministic run) `--stage=1..3` `--god` `--debug` `--no-audio` `--assets=DIR` `--autoshots=DIR` `--help`.
 
-**Fire discipline bonus.** Kill points are multiplied by up to x2.0 for players who fire in bursts and only x1.0 for those who hold the fire button down; it follows how much of the last three seconds the trigger was held, and the current multiplier is shown under the score.
+**Fire discipline bonus.** Kill points are multiplied by up to x2.0 for players who fire in bursts and only x1.0 for those who hold the fire button down; it follows how much of the last three seconds the trigger was held, and the current multiplier is shown under the score as a percentage (BONUS 100 to BONUS 200).
 
 **Weapon tiers.** Every pair of docked modules changes the weapon, not just the shot count: needle (0), twin bolts (1-2), trident with a central lance (3-4), piercing lance fan (5-6), and a piercing plasma ball flanked by lances (7-8). The second module of each pair adds escort shots.
 
