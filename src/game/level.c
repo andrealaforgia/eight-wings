@@ -37,6 +37,7 @@ static void add_ground(Game* g, GroundType t, float wx, float wy, float p0) {
   (void)p0;
 }
 
+#define NUM_AIR_KINDS 11
 static float rf(rng_t* r, float lo, float hi) { return lo + (hi - lo) * rng_float(r); }
 
 static void wave(Game* g, rng_t* r, int stage, float d, int kind) {
@@ -65,25 +66,40 @@ static void wave(Game* g, rng_t* r, int stage, float d, int kind) {
       add_air(g, d, ET_SAUCER, rf(r, 60, 196), 0, 0, 1);
       if (stage >= 1) add_air(g, d + 40, ET_SAUCER, rf(r, 60, 196), 0, 0, 1);
       break;
-    default: /* bomber */
+    case 6: /* bomber */
       add_air(g, d, ET_BOMBER, rf(r, 60, 196), 0, 0, 1);
+      break;
+    case 7: { /* a chain of weavers snaking across the screen */
+      float ph = rf(r, 0, 6.28f);
+      for (int i = 0; i < 5 + stage; i++) add_air(g, d + (float)i * 11.0f, ET_WEAVER, cx, 0, ph, 1);
+      break;
+    }
+    case 8: /* hunters: homing darts, one more per stage */
+      for (int i = 0; i < 2 + stage; i++) add_air(g, d + (float)i * 26.0f, ET_HUNTER, rf(r, 40, 216), 0, 0, 1);
+      break;
+    case 9: /* a gunship that parks overhead (carries a weapon capsule) */
+      add_air(g, d, ET_GUNSHIP, rf(r, 80, 176), 0, 0, 1);
+      break;
+    default: /* splitter pods, a pair in the later stages */
+      add_air(g, d, ET_SPLITTER, rf(r, 50, 206), 0, rf(r, 0, 6.28f), 1);
+      if (stage >= 1) add_air(g, d + 30, ET_SPLITTER, rf(r, 50, 206), 0, rf(r, 0, 6.28f), 1);
       break;
   }
 }
 
 static void script_air(Game* g, rng_t* r, int stage, float len) {
-  /* weights per kind: drone swoop wing diver spinner saucer bomber */
-  static const int W[NUM_STAGES][7] = {{30, 25, 25, 12, 5, 5, 0}, {15, 20, 18, 15, 10, 12, 10}, {10, 14, 15, 20, 14, 15, 12}};
+  /* weights per kind: drone swoop wing diver spinner saucer bomber weaver hunter gunship splitter */
+  static const int W[NUM_STAGES][NUM_AIR_KINDS] = {{16, 14, 16, 8, 4, 4, 0, 14, 8, 7, 9}, {10, 14, 12, 10, 8, 10, 8, 14, 10, 6, 8}, {6, 10, 10, 12, 10, 10, 8, 12, 14, 8, 10}};
   float d = 260;
   while (d < len - 220) {
     int total = 0;
-    for (int k = 0; k < 7; k++) total += W[stage][k];
+    for (int k = 0; k < NUM_AIR_KINDS; k++) total += W[stage][k];
     int pick = rng_range(r, 0, total - 1), kind = 0;
-    for (; kind < 7; kind++) {
+    for (; kind < NUM_AIR_KINDS; kind++) {
       if (pick < W[stage][kind]) break;
       pick -= W[stage][kind];
     }
-    if (kind > 6) kind = 0;
+    if (kind >= NUM_AIR_KINDS) kind = 0;
     /* introduce harder kinds a little later in the first stage */
     if (stage == 0 && d < 900 && kind >= 3) kind = (int)(d / 150) % 3;
     wave(g, r, stage, d, kind);
@@ -112,8 +128,9 @@ static void script_ground(Game* g, rng_t* r, int stage, float len) {
     float x = rf(r, 24, 232);
     if (pick < 14) {
       for (int k = 0; k < 2 + stage; k++) add_ground(g, GT_RAPTOR, x + (float)(k * 22 - 22), y + (float)(k * 12), 0); /* a hunting pack */
-    } else if (pick < 22 && (stage >= 1 || y > 1500)) {
-      add_ground(g, GT_REX, x, y, 0);
+    } else if (pick < 26 && (stage >= 1 || y > 1500)) {
+      static const GroundType big[NUM_STAGES][3] = {{GT_REX, GT_TRIKE, GT_REX}, {GT_TRIKE, GT_SPINO, GT_REX}, {GT_SPINO, GT_BRONTO, GT_TRIKE}};
+      add_ground(g, big[stage][rng_range(r, 0, 2)], x, y, 0);
     } else if (pick < 34) add_ground(g, GT_TURRET, x, y, 0);
     else if (pick < 50) add_ground(g, GT_TANK, x, y, rng_chance(r, 0.5f) ? 1 : -1);
     else if (pick < 68) add_ground(g, GT_RADAR, x, y, 0);
@@ -125,6 +142,10 @@ static void script_ground(Game* g, rng_t* r, int stage, float len) {
   /* every stage has at least one stomping rex and a raptor pack early on */
   add_ground(g, GT_RAPTOR, 100, 640, 0); add_ground(g, GT_RAPTOR, 140, 664, 0); add_ground(g, GT_RAPTOR, 120, 700, 0);
   add_ground(g, GT_REX, 128, len * 0.35f, 0);
+  /* and two of the really big ones, a different pair in every stage */
+  static const GroundType showpiece[NUM_STAGES][2] = {{GT_TRIKE, GT_SPINO}, {GT_SPINO, GT_BRONTO}, {GT_BRONTO, GT_TRIKE}};
+  add_ground(g, showpiece[stage][0], 100, len * 0.22f, 0);
+  add_ground(g, showpiece[stage][1], 150, len * 0.78f, 0);
   /* one showpiece fortress per stage */
   add_ground(g, GT_FORT, 128, len * 0.55f, 0);
   add_ground(g, GT_TURRET, 90, len * 0.55f + 30, 0);
@@ -171,7 +192,7 @@ static void build_terrain(Game* g, int stage, rng_t* r) {
     const Spawn* s = &g->spawns[i];
     if (s->kind != SP_GROUND) continue;
     int col = (int)(s->x / TILE), row = (int)(s->p0 / TILE);
-    int rad = (s->type == GT_FORT || s->type == GT_REX) ? 3 : 2;
+    int rad = s->type == GT_BRONTO ? 4 : (s->type == GT_FORT || s->type == GT_REX || s->type == GT_TRIKE || s->type == GT_SPINO) ? 3 : 2;
     for (int dy = -rad; dy <= rad; dy++)
       for (int dx = -rad; dx <= rad; dx++) {
         int rr = row + dy, cc = col + dx;

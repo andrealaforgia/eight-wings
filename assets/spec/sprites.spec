@@ -200,3 +200,23 @@ tile_t2_liq12  64 64 1 tiles  theme 2 liquid autotile mask 12
 tile_t2_liq13  64 64 1 tiles  theme 2 liquid autotile mask 13
 tile_t2_liq14  64 64 1 tiles  theme 2 liquid autotile mask 14
 tile_t2_liq15  64 64 1 tiles  theme 2 liquid autotile mask 15
+# ---------------- ROUND 6: more excitement (new enemies, big dinosaurs, weapon types) ----------------
+e_weaver       64 64 4 enemies  sine-wave flyer: slim crescent-winged fighter in teal/lime, arrives in chains and snakes across the screen, 4 frames (wing beat), faces DOWN
+e_hunter       64 64 4 enemies  homing dart: needle body with a glowing red eye and swept fins, chases the player and turns toward them, 4 frames (engine pulse), faces DOWN
+e_gunship      128 96 2 enemies  armoured gunship: wide twin-cannon hull in steel and crimson with a front glass canopy, hovers and fires aimed bursts, 2 frames (cannon glow), faces DOWN
+e_splitter     80 80 4 enemies  segmented egg-pod carrier in purple and bone-white with visible seams; when destroyed it releases three drones; 4 frames (pulsing core)
+g_trike        160 160 4 ground  big charging triceratops seen from above, facing DOWN: bony frill, three horns, armoured back plates, heavy legs, 4-frame stampede cycle, ochre/rust scales with a cream frill
+g_spino        176 176 4 ground  spinosaurus seen from above, facing DOWN: long crocodile snout, tall dorsal sail with stripes, clawed forelimbs, thick tail, 4-frame walk cycle, teal/blue-green with an orange sail
+g_bronto       224 224 4 ground  huge long-necked sauropod seen from above, facing DOWN: small head on a long curved neck, massive round body, four pillar legs, long tapering tail, 4-frame slow stomp, olive-grey with pale underbelly spots
+g_bones_trike  160 160 1 ground  fossil skeleton of the triceratops lying on the ground: horned skull with frill, ribcage, spine, bone-white
+g_bones_spino  176 176 1 ground  fossil skeleton of the spinosaurus: long skull, sail spines, ribcage, tail, bone-white
+g_bones_bronto 224 224 1 ground  fossil skeleton of the sauropod: tiny skull, long neck vertebrae, huge ribcage, tail, bone-white
+shot_pellet    16 16 1 ship  small round spread-gun pellet, hot yellow core with orange rim
+shot_laser     12 64 2 ship  long thin laser beam segment pointing up, white-cyan core with cyan glow rim, 2 frames shimmer
+shot_missile   20 40 2 ship  player homing missile pointing UP: slim body, red nose, fins, orange exhaust flame, 2 frames flame flicker
+shot_wave      40 24 2 ship  crescent wave bullet (arc opening downward, tips curling back), lime-green to white, 2 frames shimmer
+wp_vulcan      64 64 2 pickups  weapon capsule HEXAGONAL (clearly not the round numbered module pods) with a big letter "V", blue family, 2 frames pulsing glow
+wp_spread      64 64 2 pickups  hexagonal weapon capsule, big letter "S", orange family
+wp_laser       64 64 2 pickups  hexagonal weapon capsule, big letter "L", cyan family
+wp_missile     64 64 2 pickups  hexagonal weapon capsule, big letter "M", red family
+wp_wave        64 64 2 pickups  hexagonal weapon capsule, big letter "W", green family

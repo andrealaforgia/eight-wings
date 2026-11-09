@@ -43,3 +43,9 @@ Owner feedback: the core and its eight modules looked like unrelated add-ons. Co
 by composing the fully assembled ship once as a single swept-wing aircraft and slicing it into the existing sprites by module, so panel lines,
 leading edges and engines continue across the docking seams; each module keeps only an accent stripe on the shared hull. Sprite names, sizes
 and module offsets are unchanged. Generator: `tools/assetgen/gen_ship.py` with `_ship5_aircraft.py`.
+
+## Round 6: more excitement
+Owner feedback: "make the game a bit more exciting: diversify the enemies, add a few more bigger dinos, make the weapon on the starship of various types."
+Codex drew 23 new sprites in two parallel jobs (`docs/codex/BRIEF_ROUND6.md`, `JOB_E6.md`, `JOB_W6.md`, `run_round6.sh`): four flyers (`e_weaver`, `e_hunter`, `e_gunship`,
+`e_splitter`), three big dinosaurs with skeletons (`g_trike`, `g_spino`, `g_bronto`, `g_bones_*`), four weapon shots (`shot_pellet`, `shot_laser`, `shot_missile`, `shot_wave`) and five
+hexagonal weapon capsules (`wp_*`). Known weak spot: the dinosaur walk cycles move their legs only slightly between frames.

@@ -132,6 +132,7 @@ void player_die(Game* g) {
     }
   }
   memset(p->comp, 0, sizeof p->comp);
+  p->weapon = WT_VULCAN; /* a lost ship loses its special weapon too */
   p->state = PS_DEAD;
   p->lives--;
   p->respawn_timer = RESPAWN_DELAY;
@@ -209,24 +210,24 @@ static PBullet* new_pbullet(Game* g, PBulletKind kind, float x, float y, float v
   sim_set_velocity(&b->vel, vx, vy);
   b->dmg = dmg;
   b->pierce = pierce;
+  b->age = 0;
+  b->life = 0;
+  b->ox = x;
+  b->phase = 0;
+  b->amp = 0;
   return b;
 }
 
-static void fire_volley(Game* g) {
+static int docked_count(const Game* g) {
+  int n = 0;
+  for (int i = 0; i < NUM_COMPONENTS; i++) n += player_comp_docked(g, i) ? 1 : 0;
+  return n;
+}
+
+/* every pair of docked modules is one weapon tier (0..4); the weapon TYPE decides what the tiers look like */
+static void fire_vulcan(Game* g, int n, int tier) {
   Player* p = &g->player;
   float x = p->pos.x, y = p->pos.y;
-  bool phoenix = player_is_phoenix(g);
-  bool detached = p->form_state != FORM_NONE;
-  if (phoenix) {
-    new_pbullet(g, PB_PHOENIX, x, y - 18, 0, -5.5f, 4, true);
-    sim_fx(g, FX_MUZZLE, x, y - 20, false);
-    sim_sfx(g, SFX_SHOT_HEAVY);
-    return;
-  }
-  int n = 0;
-  if (!detached)
-    for (int i = 0; i < NUM_COMPONENTS; i++) n += player_comp_docked(g, i) ? 1 : 0;
-  int tier = (n + 1) / 2; /* 0..4: each pair of modules changes the weapon's shape and power, it does not just add shots */
   float my = y - 13;
   switch (tier) {
     case 0: /* needle */
@@ -263,7 +264,106 @@ static void fire_volley(Game* g) {
   sim_fx(g, FX_MUZZLE, x, y - 15, false);
   if (tier >= 2) sim_sfx(g, SFX_SHOT_HEAVY);
   else if (p->shot_alt % 2 == 0) sim_sfx(g, SFX_SHOT);
+}
+
+/* SPREAD: a fan of short-range pellets, wider and denser with every tier */
+static void fire_spread(Game* g, int tier) {
+  Player* p = &g->player;
+  float x = p->pos.x, y = p->pos.y;
+  int count = 3 + 2 * tier;
+  for (int i = 0; i < count; i++) {
+    float a = ((float)i - (float)(count - 1) * 0.5f) * 0.15f;
+    PBullet* b = new_pbullet(g, PB_PELLET, x + sinf(a) * 6, y - 12 - cosf(a) * 2, sinf(a) * 5.0f, -cosf(a) * 5.0f, tier >= 2 ? 2 : 1, tier >= 4);
+    if (b) b->life = 42 + 4 * tier;
+  }
+  sim_fx(g, FX_MUZZLE, x, y - 15, false);
+  sim_sfx(g, SFX_SHOT);
+}
+
+/* LASER: fast thin piercing beams, side by side */
+static void fire_laser(Game* g, int tier) {
+  Player* p = &g->player;
+  float x = p->pos.x, y = p->pos.y;
+  static const int beams[5] = {1, 2, 3, 3, 4};
+  int count = beams[tier];
+  for (int i = 0; i < count; i++) {
+    float off = ((float)i - (float)(count - 1) * 0.5f) * 6.0f;
+    float tilt = (tier >= 4 && (i == 0 || i == count - 1)) ? off * 0.03f : 0.0f;
+    new_pbullet(g, PB_LASER, x + off, y - 18, tilt, -9.0f, tier >= 3 ? 2 : 1, true);
+  }
+  sim_fx(g, FX_MUZZLE, x, y - 20, false);
+  if (p->shot_alt % 3 == 0) sim_sfx(g, SFX_BEAM);
+}
+
+/* MISSILE: homing missiles that burst out sideways, then curve onto the nearest target */
+static void fire_missile(Game* g, int tier) {
+  Player* p = &g->player;
+  float x = p->pos.x, y = p->pos.y;
+  static const int counts[5] = {2, 2, 4, 4, 6};
+  int count = counts[tier];
+  for (int i = 0; i < count; i++) {
+    float side = (i % 2 == 0) ? -1.0f : 1.0f;
+    float rank = (float)(i / 2);
+    PBullet* b = new_pbullet(g, PB_MISSILE, x + side * (8 + 3 * rank), y - 6, side * (1.2f + 0.5f * rank), -2.6f, tier >= 3 ? 3 : 2, false);
+    if (b) b->life = 150;
+  }
+  sim_fx(g, FX_MUZZLE, x - 8, y - 8, false);
+  sim_fx(g, FX_MUZZLE, x + 8, y - 8, false);
+  sim_sfx(g, SFX_SHOT_HEAVY);
+}
+
+/* WAVE: piercing crescents that snake up the screen in counter-phase */
+static void fire_wave(Game* g, int tier) {
+  Player* p = &g->player;
+  float x = p->pos.x, y = p->pos.y;
+  static const int pairs[5] = {1, 1, 2, 2, 3};
+  int np = pairs[tier];
+  for (int j = 0; j < np; j++) {
+    float lat = ((float)j - (float)(np - 1) * 0.5f) * 20.0f;
+    for (int k = 0; k < 2; k++) {
+      PBullet* b = new_pbullet(g, PB_WAVE, x + lat, y - 14, 0, -4.4f, tier >= 2 ? 2 : 1, true);
+      if (b) {
+        b->ox = x + lat;
+        b->phase = k == 0 ? 0.0f : 3.14159265f;
+        b->amp = 12.0f + 2.0f * (float)tier;
+      }
+    }
+  }
+  sim_fx(g, FX_MUZZLE, x, y - 15, false);
+  if (p->shot_alt % 2 == 0) sim_sfx(g, SFX_SHOT);
+}
+
+static void fire_volley(Game* g) {
+  Player* p = &g->player;
+  float x = p->pos.x, y = p->pos.y;
+  if (player_is_phoenix(g)) {
+    new_pbullet(g, PB_PHOENIX, x, y - 18, 0, -5.5f, 4, true);
+    sim_fx(g, FX_MUZZLE, x, y - 20, false);
+    sim_sfx(g, SFX_SHOT_HEAVY);
+    return;
+  }
+  bool detached = p->form_state != FORM_NONE;
+  int n = detached ? 0 : docked_count(g);
+  int tier = (n + 1) / 2;
+  switch (p->weapon) {
+    case WT_SPREAD: fire_spread(g, tier); break;
+    case WT_LASER: fire_laser(g, tier); break;
+    case WT_MISSILE: fire_missile(g, tier); break;
+    case WT_WAVE: fire_wave(g, tier); break;
+    default: fire_vulcan(g, n, tier); break;
+  }
   p->shot_alt++;
+}
+
+int player_weapon_interval(const Game* g) {
+  if (player_is_phoenix(g)) return 9;
+  switch (g->player.weapon) {
+    case WT_SPREAD: return 10;
+    case WT_LASER: return 6;
+    case WT_MISSILE: return 16;
+    case WT_WAVE: return 10;
+    default: return SHOT_INTERVAL;
+  }
 }
 
 static void fire_formation_components(Game* g) {
@@ -371,7 +471,7 @@ void player_update(Game* g) {
   if (p->shot_cd > 0) p->shot_cd--;
   if (in->fire && p->shot_cd <= 0) {
     fire_volley(g);
-    p->shot_cd = player_is_phoenix(g) ? 9 : SHOT_INTERVAL;
+    p->shot_cd = player_weapon_interval(g);
   }
 
   if (in->formation && !g->prev_in.formation && player_can_start_formation(g)) player_start_formation(g);

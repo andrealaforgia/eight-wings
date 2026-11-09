@@ -170,6 +170,25 @@
   X(tile_t2_liq13, 64, 64, 1) \
   X(tile_t2_liq14, 64, 64, 1) \
   X(tile_t2_liq15, 64, 64, 1) \
+  X(e_weaver, 64, 64, 4) \
+  X(e_hunter, 64, 64, 4) \
+  X(e_gunship, 128, 96, 2) \
+  X(e_splitter, 80, 80, 4) \
+  X(g_trike, 160, 160, 4) \
+  X(g_spino, 176, 176, 4) \
+  X(g_bronto, 224, 224, 4) \
+  X(g_bones_trike, 160, 160, 1) \
+  X(g_bones_spino, 176, 176, 1) \
+  X(g_bones_bronto, 224, 224, 1) \
+  X(shot_pellet, 16, 16, 1) \
+  X(shot_laser, 12, 64, 2) \
+  X(shot_missile, 20, 40, 2) \
+  X(shot_wave, 40, 24, 2) \
+  X(wp_vulcan, 64, 64, 2) \
+  X(wp_spread, 64, 64, 2) \
+  X(wp_laser, 64, 64, 2) \
+  X(wp_missile, 64, 64, 2) \
+  X(wp_wave, 64, 64, 2) \
   /* end */
 
 #endif

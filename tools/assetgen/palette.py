@@ -33,3 +33,19 @@ PALETTE = {name: _h(v) for name, v in {
 
 # Hard limit checked by tools/validate_assets.py across the whole atlas.
 MAX_COLOURS = len(PALETTE)
+
+# Round 6 creature materials: restrained teal stays distinct from player cyan.
+PALETTE.update({name: _h(value) for name, value in {
+    'teal1': '#102c29', 'teal2': '#19483d', 'teal3': '#286650',
+    'teal4': '#39876a', 'teal5': '#60ad83', 'teal6': '#a5d3a0',
+    'olive1': '#292e23', 'olive2': '#424b33', 'olive3': '#626e47',
+    'olive4': '#879463', 'olive5': '#abb782', 'olive6': '#d1d7ae',
+    'rust1': '#442417', 'rust2': '#713b25', 'rust3': '#9a5530',
+    'rust4': '#bc7943', 'rust5': '#d9a363', 'rust6': '#efcc91',
+    'bone1': '#4a4036', 'bone2': '#786c56', 'bone3': '#a99c7a',
+    'bone4': '#cbbf99', 'bone5': '#e7d9b4', 'bone6': '#fff0d1',
+    'steel_m': '#50596f', 'steel_l': '#c8d0df',
+    'red_m': '#b52b3b', 'red_l': '#f05764',
+    'purple_m': '#8944bb', 'purple_l': '#cf7bee',
+}.items()})
+MAX_COLOURS = len(PALETTE)

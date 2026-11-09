@@ -120,13 +120,13 @@ static void test_difficulty_scales_bullets(void) {
   free(g);
 }
 
-static void test_bomber_drops_medal(void) {
+static void test_bomber_drops_medal_or_weapon(void) {
   Game* g = new_playing_game(5);
   Enemy* e = enemy_spawn(g, ET_BOMBER, 100, 50, 0, 1);
   enemy_hit(g, e, 999);
-  int medals = 0;
-  POOL_EACH(Pickup, k, g->pickups) medals += (k->number == 0);
-  CHECK_INT(medals, 1);
+  int drops = 0;
+  POOL_EACH(Pickup, k, g->pickups) drops += (k->number <= 0);
+  CHECK_INT(drops, 1);
   game_free(g);
   free(g);
 }
@@ -142,6 +142,6 @@ int main(void) {
   RUN(test_enemy_shoots_aimed_at_player);
   RUN(test_contact_with_enemy_kills_player);
   RUN(test_difficulty_scales_bullets);
-  RUN(test_bomber_drops_medal);
+  RUN(test_bomber_drops_medal_or_weapon);
   return test_report();
 }

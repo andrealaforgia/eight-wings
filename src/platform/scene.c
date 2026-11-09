@@ -71,41 +71,85 @@ static float quantise(float a) {
   return floorf(a / step + 0.5f) * step;
 }
 
+/* the walking creatures: sprite, frames and ticks per frame, and the skeleton they leave behind */
+static SpriteId dino_sprite(GroundType t, int* tpf) {
+  switch (t) {
+    case GT_REX: *tpf = 9; return SPR_g_rex;
+    case GT_TRIKE: *tpf = 6; return SPR_g_trike;
+    case GT_SPINO: *tpf = 7; return SPR_g_spino;
+    case GT_BRONTO: *tpf = 14; return SPR_g_bronto;
+    default: *tpf = 5; return SPR_g_raptor;
+  }
+}
+
+static SpriteId bones_sprite(GroundType t) {
+  switch (t) {
+    case GT_REX: return SPR_g_bones_l;
+    case GT_TRIKE: return SPR_g_bones_trike;
+    case GT_SPINO: return SPR_g_bones_spino;
+    case GT_BRONTO: return SPR_g_bones_bronto;
+    default: return SPR_g_bones_s;
+  }
+}
+
 static void draw_ground(Renderer* r, const Game* g) {
   POOL_EACH(const Ground, e, g->ground) {
     float sy = sim_ground_sy(g, e->pos.y);
-    if (sy < -24 || sy > SCREEN_H + 24) continue;
+    if (sy < -40 || sy > SCREEN_H + 40) continue;
     float x = e->pos.x;
     SpriteStyle st = S;
     if (e->hp <= 0) {
-      if (e->type == GT_RAPTOR || e->type == GT_REX) {
+      if (ground_is_dino(e->type)) {
         /* the skeleton lies in the pose the creature died in */
         SpriteStyle bs = S;
         bs.rot = -quantise(e->p0);
-        renderer_sprite(r, e->type == GT_REX ? SPR_g_bones_l : SPR_g_bones_s, 0, x, sy, &bs);
+        renderer_sprite(r, bones_sprite(e->type), 0, x, sy, &bs);
       } else {
         renderer_sprite(r, e->type == GT_FORT ? SPR_g_rubble_l : SPR_g_rubble_s, 0, x, sy, &S);
       }
       continue;
     }
+    SpriteId id = SPR_g_radar;
+    int fr = 0;
+    float rot = 0;
+    int dtpf;
     switch (e->type) {
-      case GT_TURRET: renderer_sprite(r, SPR_g_turret, e->aim, x, sy, &st); break;
-      case GT_BUNKER: renderer_sprite(r, SPR_g_bunker, e->hp <= 2 ? 2 : e->state, x, sy, &st); break;
-      case GT_TANK: renderer_sprite(r, SPR_g_tank, (e->age / 8) % 2, x, sy, &st); break;
-      case GT_SILO: renderer_sprite(r, SPR_g_silo, e->state, x, sy, &st); break;
-      case GT_FORT: renderer_sprite(r, SPR_g_fort, e->state > 0 ? 1 : 0, x, sy, &st); break;
-      case GT_RADAR: renderer_sprite(r, SPR_g_radar, (e->age / 6) % 4, x, sy, &st); break;
-      case GT_RAPTOR: { st.rot = -quantise(e->p0); renderer_sprite(r, SPR_g_raptor, (e->age / 5) % 4, x, sy, &st); break; }
-      case GT_REX: { st.rot = -quantise(e->p0); renderer_sprite(r, SPR_g_rex, (e->age / 9) % 4, x, sy, &st); break; }
+      case GT_TURRET: id = SPR_g_turret; fr = e->aim; break;
+      case GT_BUNKER: id = SPR_g_bunker; fr = e->hp <= 2 ? 2 : e->state; break;
+      case GT_TANK: id = SPR_g_tank; fr = (e->age / 8) % 2; break;
+      case GT_SILO: id = SPR_g_silo; fr = e->state; break;
+      case GT_FORT: id = SPR_g_fort; fr = e->state > 0 ? 1 : 0; break;
+      case GT_RADAR: id = SPR_g_radar; fr = (e->age / 6) % 4; break;
+      case GT_RAPTOR:
+      case GT_REX:
+      case GT_TRIKE:
+      case GT_SPINO:
+      case GT_BRONTO:
+        id = dino_sprite(e->type, &dtpf);
+        fr = (e->age / dtpf) % 4;
+        rot = -quantise(e->p0);
+        if (e->type == GT_TRIKE && e->state == 1 && (e->timer / 3) % 2 == 0) st = tint(1.0f, 0.6f, 0.5f); /* winding up to charge */
+        if (e->type == GT_TRIKE && e->state == 1) x += (float)((e->timer % 3) - 1) * 0.6f;
+        break;
       default: break;
     }
+    st.rot = rot;
+    renderer_sprite(r, id, fr, x, sy, &st);
     if (e->flash > 0) {
       SpriteStyle fl = additive(0.7f);
-      SpriteId id = e->type == GT_TURRET ? SPR_g_turret : e->type == GT_BUNKER ? SPR_g_bunker : e->type == GT_TANK ? SPR_g_tank : e->type == GT_SILO ? SPR_g_silo : e->type == GT_FORT ? SPR_g_fort : e->type == GT_RAPTOR ? SPR_g_raptor : e->type == GT_REX ? SPR_g_rex : SPR_g_radar;
-      int fr = e->type == GT_TURRET ? e->aim : e->type == GT_BUNKER ? (e->hp <= 2 ? 2 : e->state) : e->type == GT_RAPTOR ? (e->age / 5) % 4 : e->type == GT_REX ? (e->age / 9) % 4 : 0;
-      if (e->type == GT_RAPTOR || e->type == GT_REX) fl.rot = -quantise(e->p0);
+      fl.rot = rot;
       renderer_sprite(r, id, fr, x, sy, &fl);
     }
+  }
+}
+
+static SpriteId weapon_capsule(int w) {
+  switch (w) {
+    case WT_SPREAD: return SPR_wp_spread;
+    case WT_LASER: return SPR_wp_laser;
+    case WT_MISSILE: return SPR_wp_missile;
+    case WT_WAVE: return SPR_wp_wave;
+    default: return SPR_wp_vulcan;
   }
 }
 
@@ -114,6 +158,12 @@ static void draw_pickups(Renderer* r, const Game* g, long frame) {
     int f = (int)(frame / 8) % 2;
     if (p->number == 0) {
       renderer_sprite(r, SPR_medal, f, p->pos.x, p->pos.y, &S);
+    } else if (p->number < 0) { /* weapon capsule: hexagonal, with a pulsing glow */
+      SpriteStyle glow = additive(0.3f + 0.25f * sinf((float)frame * 0.25f));
+      glow.scale = 1.4f;
+      SpriteId id = weapon_capsule(-p->number - 1);
+      renderer_sprite(r, id, f, p->pos.x, p->pos.y, &glow);
+      renderer_sprite(r, id, f, p->pos.x, p->pos.y, &S);
     } else {
       SpriteStyle glow = additive(0.25f + 0.2f * sinf((float)frame * 0.2f));
       glow.scale = 1.5f;
@@ -132,6 +182,10 @@ static SpriteId enemy_sprite(EnemyType t, int* nframes) {
     case ET_SPINNER: *nframes = 4; return SPR_e_spinner;
     case ET_WING: *nframes = 2; return SPR_e_wing;
     case ET_BOMBER: *nframes = 2; return SPR_e_bomber;
+    case ET_WEAVER: *nframes = 4; return SPR_e_weaver;
+    case ET_HUNTER: *nframes = 4; return SPR_e_hunter;
+    case ET_GUNSHIP: *nframes = 2; return SPR_e_gunship;
+    case ET_SPLITTER: *nframes = 4; return SPR_e_splitter;
     default: *nframes = 4; return SPR_e_saucer;
   }
 }
@@ -140,11 +194,11 @@ static void draw_enemies(Renderer* r, const Game* g) {
   POOL_EACH(const Enemy, e, g->enemies) {
     int n;
     SpriteId id = enemy_sprite(e->type, &n);
-    int tpf = e->type == ET_DIVER ? 3 : (e->type == ET_BOMBER ? 8 : 5);
+    int tpf = e->type == ET_DIVER || e->type == ET_HUNTER ? 3 : (e->type == ET_BOMBER || e->type == ET_GUNSHIP ? 8 : 5);
     int fr = (e->age / tpf) % n;
     float rot = 0;
     if (e->type == ET_SWOOP) rot = -e->p0;               /* sprite faces down; p0 = heading from down toward +x */
-    if (e->type == ET_DIVER && e->state == 2) rot = -atan2f(sim_vx(&e->vel), sim_vy(&e->vel));
+    if ((e->type == ET_DIVER && e->state == 2) || e->type == ET_HUNTER) rot = -atan2f(sim_vx(&e->vel), sim_vy(&e->vel));
     SpriteStyle st = S;
     st.rot = rot;
     shadow(r, id, fr, e->pos.x, e->pos.y, rot);
@@ -299,6 +353,26 @@ static void draw_bullets(Renderer* r, const Game* g, long frame) {
         renderer_sprite(r, SPR_shot_ph, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &gl);
         break;
       }
+      case PB_PELLET: renderer_sprite(r, SPR_shot_pellet, 0, b->pos.x, b->pos.y, &S); break;
+      case PB_LASER: {
+        SpriteStyle gl = additive(0.5f);
+        gl.scale = 1.6f;
+        renderer_sprite(r, SPR_shot_laser, (int)(frame / 2) % 2, b->pos.x, b->pos.y, &gl);
+        renderer_sprite(r, SPR_shot_laser, (int)(frame / 2) % 2, b->pos.x, b->pos.y, &S);
+        break;
+      }
+      case PB_MISSILE: {
+        SpriteStyle st = S;
+        st.rot = atan2f(sim_vx(&b->vel), -sim_vy(&b->vel));
+        renderer_sprite(r, SPR_shot_missile, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &st);
+        break;
+      }
+      case PB_WAVE: {
+        SpriteStyle st = S;
+        st.rot = atanf(b->amp * 0.17f * cosf((float)b->age * 0.17f + b->phase) / 4.4f) * -1.0f; /* tilt with the slope of the path */
+        renderer_sprite(r, SPR_shot_wave, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &st);
+        break;
+      }
       case PB_PHOENIX: renderer_sprite(r, SPR_shot_ph, (int)(frame / 3) % 2, b->pos.x, b->pos.y, &S); break;
     }
   }
@@ -350,6 +424,15 @@ static void draw_hud(Renderer* r, const Game* g, long frame) {
     int t = sim_fire_bonus_tenths(g);
     snprintf(buf, sizeof buf, "BONUS %d", t * 10);
     renderer_text(r, buf, 4, 13, t >= 15 ? 0.3f : 1.0f, 1.0f, t >= 15 ? 0.3f : 0.3f, 0.9f);
+  }
+  {
+    static const char* const names[WT_COUNT] = {"VULCAN", "SPREAD", "LASER", "MISSILE", "WAVE"};
+    static const float cols[WT_COUNT][3] = {{0.45f, 0.65f, 1.0f}, {1.0f, 0.65f, 0.2f}, {0.3f, 1.0f, 1.0f}, {1.0f, 0.35f, 0.35f}, {0.4f, 1.0f, 0.4f}};
+    int w = p->weapon < 0 || p->weapon >= WT_COUNT ? 0 : p->weapon;
+    SpriteStyle wi = S;
+    wi.scale = 0.5f;
+    renderer_sprite(r, weapon_capsule(w), (int)(frame / 8) % 2, 84, 19, &wi);
+    renderer_text(r, names[w], 94, 13, cols[w][0], cols[w][1], cols[w][2], 1.0f);
   }
   snprintf(buf, sizeof buf, "HI %06ld", g->hiscore);
   renderer_text(r, buf, 100, 2, 1.0f, 0.85f, 0.3f, 1);

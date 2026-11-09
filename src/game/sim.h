@@ -55,6 +55,10 @@ void sim_aimed_shot(Game* g, float x, float y, float speed, float angle_offset);
 float sim_bullet_speed(const Game* g, float base);
 int sim_fire_interval(const Game* g, int base);
 Pickup* sim_pickup(Game* g, int number, float x, float y);
+/** Drops a weapon capsule of a random type other than the one the player holds. */
+void sim_weapon_drop(Game* g, float x, float y);
+int player_weapon_interval(const Game* g);
+bool ground_is_dino(GroundType t);
 int sim_next_missing_component(const Game* g);
 void sim_kill_all_enemy_bullets_to_fx(Game* g);
 

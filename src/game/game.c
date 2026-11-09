@@ -117,6 +117,13 @@ Pickup* sim_pickup(Game* g, int number, float x, float y) {
   return p;
 }
 
+void sim_weapon_drop(Game* g, float x, float y) {
+  int pick = rng_range(&g->rng, 0, WT_COUNT - 2); /* any weapon but the current one */
+  if (pick >= g->player.weapon) pick++;
+  sim_pickup(g, -(pick + 1), x, y);
+  sim_sfx(g, SFX_POD_APPEAR);
+}
+
 int sim_next_missing_component(const Game* g) {
   for (int n = 1; n <= NUM_COMPONENTS; n++) {
     if (g->player.comp[n - 1]) continue;
@@ -210,9 +217,55 @@ void game_new_run(Game* g, int start_stage) {
 
 /* ================= per-tick simulation ================= */
 
+static float wrap_pi(float a) {
+  while (a > 3.14159265f) a -= 6.2831853f;
+  while (a < -3.14159265f) a += 6.2831853f;
+  return a;
+}
+
+/* the closest thing worth shooting at: airborne enemies, the boss, then live ground targets on screen */
+static bool nearest_target(const Game* g, float x, float y, float* tx, float* ty) {
+  float best = 1e12f;
+  POOL_EACH(const Enemy, e, g->enemies) {
+    float dx = e->pos.x - x, dy = e->pos.y - y;
+    if (e->pos.y < 4 || dy > 6) continue;
+    float d = dx * dx + dy * dy;
+    if (d < best) { best = d; *tx = e->pos.x; *ty = e->pos.y; }
+  }
+  if (g->boss.active && g->boss.pos.y < y) {
+    float dx = g->boss.pos.x - x, dy = g->boss.pos.y - y;
+    float d = dx * dx + dy * dy;
+    if (d < best) { best = d; *tx = g->boss.pos.x; *ty = g->boss.pos.y; }
+  }
+  if (best < 1e11f) return true;
+  POOL_EACH(const Ground, e, g->ground) {
+    if (e->hp <= 0) continue;
+    float sy = sim_ground_sy(g, e->pos.y);
+    float dx = e->pos.x - x, dy = sy - y;
+    if (sy < 8 || dy > 6) continue;
+    float d = dx * dx + dy * dy;
+    if (d < best) { best = d; *tx = e->pos.x; *ty = sy; }
+  }
+  return best < 1e11f;
+}
+
 static void update_pbullets(Game* g) {
   POOL_EACH(PBullet, b, g->pbullets) {
+    b->age++;
+    if (b->kind == PB_MISSILE) {
+      float vx = sim_vx(&b->vel), vy = sim_vy(&b->vel);
+      float speed = 3.0f + 0.12f * (float)b->age;
+      if (speed > 5.2f) speed = 5.2f;
+      float heading = atan2f(vx, -vy), tx, ty;
+      float want = 0.0f; /* straight up */
+      if (b->age > 6 && nearest_target(g, b->pos.x, b->pos.y, &tx, &ty)) want = atan2f(tx - b->pos.x, -(ty - b->pos.y));
+      float diff = wrap_pi(want - heading), turn = 0.11f;
+      heading += diff > turn ? turn : (diff < -turn ? -turn : diff);
+      sim_set_velocity(&b->vel, sinf(heading) * speed, -cosf(heading) * speed);
+    }
     sim_move(&b->pos, &b->vel);
+    if (b->kind == PB_WAVE) b->pos.x = b->ox + b->amp * sinf((float)b->age * 0.17f + b->phase);
+    if (b->life > 0 && --b->life == 0) { POOL_FREE(g->pbullets, b); continue; }
     if (b->pos.y < -24 || b->pos.y > SCREEN_H + 24 || b->pos.x < -24 || b->pos.x > SCREEN_W + 24) POOL_FREE(g->pbullets, b);
   }
 }
@@ -261,6 +314,10 @@ static void bullet_half(PBulletKind k, float* hw, float* hh) {
     case PB_BOLT: *hw = 3; *hh = 6; break;
     case PB_LANCE: *hw = 3; *hh = 9; break;
     case PB_PLASMA: *hw = 7; *hh = 10; break;
+    case PB_PELLET: *hw = 2; *hh = 2; break;
+    case PB_LASER: *hw = 2; *hh = 14; break;
+    case PB_MISSILE: *hw = 3; *hh = 6; break;
+    case PB_WAVE: *hw = 8; *hh = 4; break;
     default: *hw = 2; *hh = 5; break;
   }
 }
@@ -352,7 +409,19 @@ static void collect_pickups(Game* g) {
   POOL_EACH(Pickup, k, g->pickups) {
     if (fabsf(k->pos.x - p->pos.x) < 13 && fabsf(k->pos.y - p->pos.y) < 15) {
       POOL_FREE(g->pickups, k);
-      if (k->number == 0) {
+      if (k->number < 0) {
+        int w = -k->number - 1;
+        if (w == p->weapon) { /* the same weapon again: a bonus instead */
+          sim_add_score(g, 1000);
+          sim_fx_score(g, k->pos.x, k->pos.y, 1000);
+        } else {
+          p->weapon = w;
+          sim_add_score(g, 300);
+          sim_fx_score(g, k->pos.x, k->pos.y, 300);
+        }
+        sim_fx(g, FX_DOCK, k->pos.x, k->pos.y, false);
+        sim_sfx(g, SFX_DOCK);
+      } else if (k->number == 0) {
         sim_add_score(g, 1000);
         sim_fx_score(g, k->pos.x, k->pos.y, 1000);
         sim_charge_gauge(g, 10);

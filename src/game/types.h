@@ -74,7 +74,7 @@ typedef enum {
 typedef enum { MUS_NONE, MUS_TITLE, MUS_STAGE1, MUS_STAGE2, MUS_STAGE3, MUS_BOSS, MUS_GAMEOVER, MUS_CLEAR, MUS_COUNT } Music;
 
 /* ---- enemies ---- */
-typedef enum { ET_DRONE, ET_SWOOP, ET_DIVER, ET_SPINNER, ET_WING, ET_BOMBER, ET_SAUCER, ET_COUNT } EnemyType;
+typedef enum { ET_DRONE, ET_SWOOP, ET_DIVER, ET_SPINNER, ET_WING, ET_BOMBER, ET_SAUCER, ET_WEAVER, ET_HUNTER, ET_GUNSHIP, ET_SPLITTER, ET_COUNT } EnemyType;
 
 typedef struct {
   EnemyType type;
@@ -90,7 +90,7 @@ typedef struct {
 } Enemy;
 
 /* ---- ground targets (positions in WORLD coordinates: sy = SCREEN_H - wy + scroll) ---- */
-typedef enum { GT_TURRET, GT_BUNKER, GT_TANK, GT_SILO, GT_FORT, GT_RADAR, GT_RAPTOR, GT_REX, GT_COUNT } GroundType;
+typedef enum { GT_TURRET, GT_BUNKER, GT_TANK, GT_SILO, GT_FORT, GT_RADAR, GT_RAPTOR, GT_REX, GT_TRIKE, GT_SPINO, GT_BRONTO, GT_COUNT } GroundType;
 
 typedef struct {
   GroundType type;
@@ -105,18 +105,25 @@ typedef struct {
 } Ground;
 
 typedef struct {
-  int number;  /* 1..4 component pod, 0 = medal */
+  int number;  /* 1..8 module pod, 0 = medal, -1..-5 = weapon capsule (WeaponType + 1 negated) */
   Vec2 pos;
   int age;
 } Pickup;
 
-typedef enum { PB_NORMAL, PB_WIDE, PB_FORM, PB_PHOENIX, PB_HEAVY, PB_BOLT, PB_LANCE, PB_PLASMA } PBulletKind;
+/* The ship's weapon type: picked up as hexagonal capsules, upgraded in power and shape by the number of docked modules. */
+typedef enum { WT_VULCAN, WT_SPREAD, WT_LASER, WT_MISSILE, WT_WAVE, WT_COUNT } WeaponType;
+typedef enum { PB_NORMAL, PB_WIDE, PB_FORM, PB_PHOENIX, PB_HEAVY, PB_BOLT, PB_LANCE, PB_PLASMA, PB_PELLET, PB_LASER, PB_MISSILE, PB_WAVE } PBulletKind;
 typedef struct {
   PBulletKind kind;
   point_t pos;
   velocity_t vel;
   int dmg;
   bool pierce;
+  int age;
+  int life;    /* ticks left before it fades (0 = until it leaves the screen) */
+  float ox;    /* waves: the column it oscillates around; missiles: unused */
+  float phase; /* waves: oscillation phase */
+  float amp;   /* waves: oscillation amplitude */
 } PBullet;
 
 typedef enum { EB_ORB, EB_MISSILE } EBulletKind;

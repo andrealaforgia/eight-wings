@@ -1,6 +1,7 @@
 """Downward-facing enemies redrawn at four texels per logical pixel."""
 import math
-from pixlib import emit
+from _e6_render import preserve_emit as emit
+from _e6_enemies import generate as generate_round6
 from _jobb_hires import Drawing, SCALE, STEEL, RED, GOLD, GREEN, PURPLE
 
 
@@ -277,6 +278,8 @@ def generate():
     ):
         for f in range(count):
             emit(name, draw(f), frame=f, group='enemies')
+
+    generate_round6()
 
 
 if __name__ == '__main__':

@@ -40,6 +40,10 @@ static inline PBullet* add_pbullet(Game* g, PBulletKind kind, float x, float y, 
   b->pos = point(x, y);
   sim_set_velocity(&b->vel, vx, vy);
   b->dmg = dmg;
+  b->pierce = false;
+  b->age = b->life = 0;
+  b->ox = x;
+  b->phase = b->amp = 0;
   return b;
 }
 

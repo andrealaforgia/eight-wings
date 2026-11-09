@@ -1,6 +1,8 @@
 """High-density emplacements, tracked vehicles, theropods and their remains."""
 import math
-from pixlib import emit, rng_for
+from pixlib import rng_for
+from _e6_render import preserve_emit as emit
+from _e6_creatures import generate as generate_round6
 from _jobb_hires import Drawing, SCALE, STEEL, SAND, GREEN, RED
 from _jobb_anatomy import dinosaur
 
@@ -277,6 +279,8 @@ def generate():
         emit('g_bones_s' if size == 20 else 'g_bones_l', dinosaur(size, bones=True), group='ground')
     emit('g_rubble_s', rubble(16), group='ground')
     emit('g_rubble_l', rubble(32), group='ground')
+
+    generate_round6()
 
 
 if __name__ == '__main__':

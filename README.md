@@ -26,6 +26,12 @@ Real captures from the running game (`make screenshots`).
 | Walking dinosaurs | Defeated dinosaurs leave bones |
 | ![boss](screenshots/10_boss1_guns.png) | ![stage 3](screenshots/15_stage3_fortress.png) |
 | Boss 1 | Stage 3 fortress |
+| ![big dinosaur](screenshots/21_big_dinosaur.png) | ![new enemies](screenshots/20_new_enemies.png) |
+| A charging triceratops | Weavers, hunters and more |
+| ![spread](screenshots/22_weapon_spread.png) | ![laser](screenshots/23_weapon_laser.png) |
+| Spread weapon | Laser weapon |
+| ![missile](screenshots/24_weapon_missile.png) | ![wave](screenshots/25_weapon_wave.png) |
+| Homing missiles | Wave weapon |
 
 
 ## Build and run
@@ -56,7 +62,17 @@ The window opens as tall as the usable screen, with the width following the play
 
 **Fire discipline bonus.** Kill points are multiplied by up to x2.0 for players who fire in bursts and only x1.0 for those who hold the fire button down; it follows how much of the last three seconds the trigger was held, and the current multiplier is shown under the score as a percentage (BONUS 100 to BONUS 200).
 
-**Weapon tiers.** Every pair of docked modules changes the weapon, not just the shot count: needle (0), twin bolts (1-2), trident with a central lance (3-4), piercing lance fan (5-6), and a piercing plasma ball flanked by lances (7-8). The second module of each pair adds escort shots.
+**Weapon types.** Hexagonal capsules (dropped by gunships, bombers, splitters and the big dinosaurs) switch your weapon; dying resets it to the Vulcan. Every type has five tiers, one per pair of docked modules, so docking still makes every weapon bigger:
+
+| Weapon | Shape | Tiers |
+|---|---|---|
+| Vulcan (V) | straight shots | needle, twin bolts, trident with a lance, piercing lance fan, plasma ball (the second module of each pair adds escort shots) |
+| Spread (S) | a short-range fan of pellets | 3, 5, 7, 9, 11 pellets; pierces at the top tier |
+| Laser (L) | fast piercing beams | 1, 2, 3, 3, 4 beams |
+| Missile (M) | homing missiles that burst out sideways and curve onto targets | 2, 2, 4, 4, 6 missiles |
+| Wave (W) | piercing crescents snaking up in counter-phase | 2, 2, 4, 4, 6 crescents |
+
+**Enemies.** Besides drones, swoopers, wingmen, divers, spinners, saucers and bombers: weavers (sine-wave chains), hunters (homing darts), gunships (park overhead, fire bursts, always drop a weapon capsule) and splitters (burst into three attackers). **Dinosaurs:** raptors and rexes, plus three big ones: the triceratops stalks, shakes and charges, the spinosaurus spits aimed volleys, and the sauropod stomps out rings of shock-orbs. All leave skeletons behind.
 
 ## Controls
 | Action | Keys |

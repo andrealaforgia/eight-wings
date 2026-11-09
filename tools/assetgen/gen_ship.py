@@ -134,6 +134,8 @@ def generate():
     emit('ship_core_bank_r',bank(False),group='ship')
     for f in range(4): emit('phoenix',phoenix(f),f,group='ship')
     for name in ('shot_p','shot_w'): emit(name,projectile(name),group='ship')
+    from _w6_weapons import generate as generate_weapons
+    generate_weapons()
 
 
 if __name__=='__main__': generate()
