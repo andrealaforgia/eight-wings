@@ -101,10 +101,12 @@ static void script_air(Game* g, rng_t* r, int stage, float len) {
     }
     if (kind >= NUM_AIR_KINDS) kind = 0;
     /* introduce harder kinds a little later in the first stage */
-    if (stage == 0 && d < 900 && kind >= 3) kind = (int)(d / 150) % 3;
+    if (stage == 0 && d < 900 && kind >= 3) kind = rng_range(r, 0, 2);
     wave(g, r, stage, d, kind);
     d += rf(r, 120.0f, 190.0f) - 26.0f * (float)stage;
   }
+  /* whatever the dice said, every stage meets each of the new enemy kinds at least once, somewhere different each run */
+  for (int kind = 7; kind < NUM_AIR_KINDS; kind++) wave(g, r, stage, rf(r, 700.0f, len - 300.0f), kind);
 }
 
 static void script_ground(Game* g, rng_t* r, int stage, float len) {
@@ -140,16 +142,18 @@ static void script_ground(Game* g, rng_t* r, int stage, float len) {
     y += rf(r, 75, 140) - 12.0f * (float)stage;
   }
   /* every stage has at least one stomping rex and a raptor pack early on */
-  add_ground(g, GT_RAPTOR, 100, 640, 0); add_ground(g, GT_RAPTOR, 140, 664, 0); add_ground(g, GT_RAPTOR, 120, 700, 0);
-  add_ground(g, GT_REX, 128, len * 0.35f, 0);
+  float rx = rf(r, 60, 196);
+  add_ground(g, GT_RAPTOR, rx - 20, rf(r, 600, 680), 0); add_ground(g, GT_RAPTOR, rx + 20, rf(r, 640, 700), 0); add_ground(g, GT_RAPTOR, rx, rf(r, 690, 740), 0);
+  add_ground(g, GT_REX, rf(r, 70, 186), len * rf(r, 0.30f, 0.40f), 0);
   /* and two of the really big ones, a different pair in every stage */
   static const GroundType showpiece[NUM_STAGES][2] = {{GT_TRIKE, GT_SPINO}, {GT_SPINO, GT_BRONTO}, {GT_BRONTO, GT_TRIKE}};
-  add_ground(g, showpiece[stage][0], 100, len * 0.22f, 0);
-  add_ground(g, showpiece[stage][1], 150, len * 0.78f, 0);
+  add_ground(g, showpiece[stage][0], rf(r, 60, 196), len * rf(r, 0.18f, 0.28f), 0);
+  add_ground(g, showpiece[stage][1], rf(r, 60, 196), len * rf(r, 0.72f, 0.82f), 0);
   /* one showpiece fortress per stage */
-  add_ground(g, GT_FORT, 128, len * 0.55f, 0);
-  add_ground(g, GT_TURRET, 90, len * 0.55f + 30, 0);
-  add_ground(g, GT_TURRET, 166, len * 0.55f + 30, 0);
+  float fx = rf(r, 80, 176), fy = len * rf(r, 0.50f, 0.60f);
+  add_ground(g, GT_FORT, fx, fy, 0);
+  add_ground(g, GT_TURRET, fx - 38, fy + 30, 0);
+  add_ground(g, GT_TURRET, fx + 38, fy + 30, 0);
 }
 
 /* ---------------- terrain ---------------- */

@@ -198,8 +198,7 @@ static void begin_stage(Game* g, int stage) {
 }
 
 void game_new_run(Game* g, int start_stage) {
-  rng_t keep = g->rng;
-  (void)keep;
+  if (g->randomise_runs) g->seed = rng_next(&g->rng) ^ (uint32_t)(g->tick * 2654435761u) ^ 0x9e3779b9u;
   g->loop = 0;
   g->kills = 0;
   g->stats_docks = g->stats_formations = g->stats_bosses = 0;

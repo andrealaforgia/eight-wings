@@ -98,6 +98,7 @@ typedef struct {
   /* meta */
   Mode mode;
   uint32_t seed;
+  bool randomise_runs; /* every new run draws a fresh seed (so no two runs open the same way); off = reproducible from `seed` */
   rng_t rng;
   long tick;           /* total ticks since game_init */
   long mode_tick;      /* ticks in the current mode */

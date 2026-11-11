@@ -264,27 +264,67 @@ static void test_spino_spits_a_volley(void) {
 /* ---- the level script uses all of it ---- */
 
 static void test_every_stage_script_contains_the_new_variety(void) {
-  for (int stage = 0; stage < NUM_STAGES; stage++) {
-    Game* g = (Game*)calloc(1, sizeof(Game));
-    game_init(g, 1985);
-    game_new_run(g, stage);
-    bool air[ET_COUNT] = {0}, ground[GT_COUNT] = {0};
-    for (int i = 0; i < g->spawn_count; i++) {
-      if (g->spawns[i].kind == SP_AIR) air[g->spawns[i].type] = true;
-      else ground[g->spawns[i].type] = true;
+  for (int stage = 0; stage < NUM_STAGES; stage++)
+    for (uint32_t seed = 1; seed <= 25; seed++) { /* for any seed, not just a lucky one */
+      Game* g = (Game*)calloc(1, sizeof(Game));
+      game_init(g, seed * 7919u);
+      game_new_run(g, stage);
+      bool air[ET_COUNT] = {0}, ground[GT_COUNT] = {0};
+      for (int i = 0; i < g->spawn_count; i++) {
+        if (g->spawns[i].kind == SP_AIR) air[g->spawns[i].type] = true;
+        else ground[g->spawns[i].type] = true;
+      }
+      CHECK(air[ET_WEAVER] && air[ET_HUNTER] && air[ET_GUNSHIP] && air[ET_SPLITTER]);
+      CHECK(ground[GT_TRIKE] + ground[GT_SPINO] + ground[GT_BRONTO] >= 2);
+      game_free(g);
+      free(g);
     }
-    int new_air = air[ET_WEAVER] + air[ET_HUNTER] + air[ET_GUNSHIP] + air[ET_SPLITTER];
-    int big = ground[GT_TRIKE] + ground[GT_SPINO] + ground[GT_BRONTO];
-    printf("    stage %d: new flyer kinds=%d big dino kinds=%d spawns=%d\n", stage, new_air, big, g->spawn_count);
-    CHECK(new_air >= 3);
-    CHECK(big >= 2);
-    game_free(g);
-    free(g);
+}
+
+/* ---- randomness ---- */
+
+static long opening_signature(const Game* g) {
+  long sig = 0;
+  for (int i = 0; i < g->spawn_count && i < 40; i++) sig = sig * 31 + g->spawns[i].type * 7 + (long)(g->spawns[i].x) + (long)(g->spawns[i].at);
+  return sig;
+}
+
+static void test_fixed_seed_is_reproducible(void) {
+  Game* a = (Game*)calloc(1, sizeof(Game));
+  Game* b = (Game*)calloc(1, sizeof(Game));
+  game_init(a, 77); game_new_run(a, 0);
+  game_init(b, 77); game_new_run(b, 0);
+  CHECK_INT(opening_signature(a), opening_signature(b));
+  game_new_run(a, 0); /* a restart with a fixed seed repeats the same level */
+  CHECK_INT(opening_signature(a), opening_signature(b));
+  game_free(a); game_free(b); free(a); free(b);
+}
+
+static void test_random_mode_gives_a_different_opening_every_run(void) {
+  Game* g = (Game*)calloc(1, sizeof(Game));
+  game_init(g, 12345);
+  g->randomise_runs = true;
+  long sigs[6];
+  for (int i = 0; i < 6; i++) {
+    game_new_run(g, 0);
+    sigs[i] = opening_signature(g);
+    tick_n(g, (Input){0}, 30 + i * 7); /* the player's time at the title varies */
   }
+  int distinct = 0;
+  for (int i = 0; i < 6; i++) {
+    bool seen = false;
+    for (int j = 0; j < i; j++) seen = seen || sigs[j] == sigs[i];
+    distinct += !seen;
+  }
+  CHECK_INT(distinct, 6);
+  game_free(g);
+  free(g);
 }
 
 int main(void) {
   printf("test_variety\n");
+  RUN(test_fixed_seed_is_reproducible);
+  RUN(test_random_mode_gives_a_different_opening_every_run);
   RUN(test_each_weapon_has_its_own_shape_and_grows_per_tier);
   RUN(test_weapons_have_different_cadence);
   RUN(test_weapon_capsule_switches_weapon_and_duplicate_pays);

@@ -56,7 +56,7 @@ Build system note: like `super-fabio-bro`, the engine is built by its own makefi
 development machine and was not used.
 
 ### Options
-The window opens as tall as the usable screen, with the width following the playfield's proportions so there are no side bars (`--width=N --height=N` to override, `F` or F11 for full screen). Options: `--seed=N` (deterministic run) `--stage=1..3` `--god` `--debug` `--no-audio` `--assets=DIR` `--autoshots=DIR` `--help`.
+The window opens as tall as the usable screen, with the width following the playfield's proportions so there are no side bars (`--width=N --height=N` to override, `F` or F11 for full screen). Options: `--seed=N` (a fixed, reproducible game; without it every launch and every new run draws a fresh seed, so levels, wave order and dinosaur positions differ each time; F3 shows the seed) `--stage=1..3` `--god` `--debug` `--no-audio` `--assets=DIR` `--autoshots=DIR` `--help`.
 
 **Recording a playthrough.** `python3 tools/record_video.py out.mp4` plays a full run with the demo pilot (invulnerable, so it shows every stage and boss), pipes the frames to ffmpeg and mixes the sound from the game's own WAV files using a log of the sound events. About 5 minutes, 768x672, 30 fps.
 

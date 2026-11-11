@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "clock.h"
 #include "command_line.h"
@@ -94,9 +95,9 @@ static void on_sfx(const game_event_t* event, void* audio) { audio_play(audio, (
 static void on_music(const game_event_t* event, void* audio) { audio_music(audio, (Music)(event->type - GAME_EVENT_MUSIC)); }
 
 int main(int argc, char** argv) {
-  Options opt = {.seed = 1985, .asset_dir = "assets"};
+  Options opt = {.seed = 0, .asset_dir = "assets"};
   const custom_option_t custom[] = {
-      {"seed", OPTION_INT, &opt.seed, "deterministic seed (default 1985)"},
+      {"seed", OPTION_INT, &opt.seed, "fixed seed for a reproducible game (default: random every run)"},
       {"stage", OPTION_INT, &opt.stage, "start at stage 1..3 (debug)"},
       {"width", OPTION_INT, &opt.width, "window width (default: as tall as the screen)"},
       {"height", OPTION_INT, &opt.height, "window height (default: as tall as the screen)"},
@@ -188,7 +189,12 @@ int main(int argc, char** argv) {
   g->god_mode = opt.god;
   g->debug_overlay = opt.debug;
   g->hiscore = load_hiscore();
-  game_init(g, (uint32_t)opt.seed);
+  /* no --seed: every launch (and every new run) is different. The scripted recordings keep the classic seed. */
+  bool random_game = opt.seed == 0 && !opt.record_dir && !opt.shots_dir;
+  if (opt.seed == 0) opt.seed = 1985;
+  uint32_t first_seed = random_game ? ((uint32_t)time(NULL) * 2654435761u) ^ (uint32_t)(get_clock_seconds() * 1000003.0) : (uint32_t)opt.seed;
+  game_init(g, first_seed);
+  g->randomise_runs = random_game;
 
   int rc = 0;
   if (opt.record_dir) {
